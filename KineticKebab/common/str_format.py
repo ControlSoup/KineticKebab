@@ -12,11 +12,14 @@ FROM = '\n    ^--'
 FCN_TAG = '__'
 CLASS_TAG = '--'
 
+
 def pretty_fcn_name(title_string):
     return f'\n{FCN_TAG}{title_string}(){FCN_TAG}:\n'
 
+
 def pretty_class_name(ClassName):
     return f'\n{CLASS_TAG}{ClassName}(){CLASS_TAG}:\n'
+
 
 def pretty_str_key_val(*key_val_tuple, places = 3):
     '''

@@ -1,5 +1,5 @@
 import numpy as np
-import sys
+import os 
 
 from KineticKebab.common import *
 
@@ -85,9 +85,6 @@ class Standard15degSI():
                 places=places
             )
         )
-    
-    def export_svg(file_name,file_path):
-        path = sys.path.join(file_path,file_name)
 
 
 class Standard15degIM(Standard15degSI):

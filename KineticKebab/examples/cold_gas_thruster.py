@@ -32,12 +32,12 @@ def main():
         A2=At_in2,
         verbose_printing=True
     )
-    throat_pressure_coef = small_diameter_throat_press_correction(
+    small_diameter_throat_press_correction(
         At=At_in2,
         A2=At_in2,
         verbose_printing=True
     )
-    specific_inpulse_coef = small_diameter_specific_impulse_correction(
+    small_diameter_specific_impulse_correction(
         At=At_in2,
         A2=At_in2,
         verbose_printing=True
@@ -55,6 +55,7 @@ def main():
         exit_area_in2=A2_in2
     )
     print(nozzel.get_report_IM(places=6))
+    nozzel.export_svg('nozzel_test','')
 
 if __name__ == '__main__':
     main()
