@@ -1,0 +1,224 @@
+# ------------------------------------------------------------------------------ 
+# Rocket Propulsion Elements # 9 Equations 
+# PDF Link: 
+# https://ftp.idu.ac.id/wp-content/uploads/ebook/tdg/DESIGN%20SISTEM%20DAYA%20GERAK/Rocket%20Propulsion%20Elements.pdf
+# ------------------------------------------------------------------------------ 
+# ------------------------------------------------------------------------------ 
+# Chapter 3 
+# ------------------------------------------------------------------------------ 
+import numpy as np
+from sys import exit
+
+from KineticKebab.common import *  
+
+def force_3_29_SI(
+    At_m2,
+    p1_Pa,
+    kappa,
+    p2_Pa,
+    A2_m2,
+    p3_Pa,
+    verbose_printing=None
+):
+    root_pt_a = 2 * kappa**2 / (kappa -1) 
+    root_pt_b = (2 / (kappa + 1)) ** ((kappa + 1)/(kappa -1))
+    root_pt_c = 1 - ((p2_Pa / p1_Pa)**((kappa - 1) / kappa))
+
+    force_N =  At_m2 * p1_Pa * np.sqrt(root_pt_a * root_pt_b * root_pt_c) +  (A2_m2 * (p2_Pa - p3_Pa))
+
+    if verbose_printing is not None:
+        print(
+            pretty_fcn_name('force_3_29_SI') +
+            pretty_str_key_val(
+                ('At_m2',At_m2),
+                ('p1_Pa',p1_Pa),
+                ('kappa',kappa),
+                ('p2_Pa',p2_Pa),
+                ('A2_m2',A2_m2),
+                ('p3_Pa',p3_Pa),
+                ('force_N',force_N)
+            )
+        )
+
+    return force_N
+    
+
+def force_3_29_IM(
+    At_in2,
+    p1_psia,
+    kappa,
+    p2_psia,
+    A2_in2,
+    p3_psia,
+    verbose_printing=None
+):
+    
+    (
+        At_m2,
+        p1_Pa,
+        p2_Pa,
+        A2_m2,
+        p3_Pa,
+    ) = convert_many(
+        (At_in2,'in^2','m^2'),
+        (p1_psia,'psia','Pa'),
+        (p2_psia,'psia','Pa'),
+        (A2_in2,'in^2','m^2'),
+        (p3_psia,'psia','Pa')
+    )
+
+    force_N = force_3_29_SI(
+        At_m2,
+        p1_Pa,
+        kappa,
+        p2_Pa,
+        A2_m2,
+        p3_Pa
+    )
+
+    force_lbf = convert(force_N, 'N', 'lbf')
+
+
+    if verbose_printing is not None:
+        print(
+            pretty_fcn_name('force_3_29_IM') +
+            pretty_str_key_val_to_convert_val(
+                ('At_in2',At_in2,'At_m2',At_m2),
+                ('p1_psia',p1_psia,'p1_Pa',p1_Pa),
+                ('p2_psia',p2_psia,'p2_Pa',p2_Pa),
+                ('At_in2',At_in2,'A2_m2',A2_m2),
+                ('p3_psia',p3_psia,'p3_Pa',p3_Pa),
+            ) +
+            pretty_str_key_val_from_convert_val(
+                ('force_lbf',force_lbf,'force_N',force_N),
+            ) +
+            pretty_str_key_val(
+                ('kappa',kappa)
+            )
+        )
+
+    return force_lbf
+
+
+def thrust_coef_3_31_SI(
+    F_N,
+    At_m2,
+    p1_Pa,
+    verbose_printing=None
+):
+
+    thrust_coef = F_N / (At_m2 * p1_Pa)
+
+    if verbose_printing is not None:
+        print(
+            pretty_fcn_name('thrust_coef_3_31_SI'),
+            pretty_str_key_val(
+                ('F_N',F_N),
+                ('At_m2',At_m2),
+                ('p1_Pa',p1_Pa),
+                ('thrust_coef',thrust_coef)
+            )
+        )
+
+    return thrust_coef 
+
+
+def thrust_coef_3_31_IM(
+    F_lbf,
+    At_in2,
+    p1_psia,
+    verbose_printing=None
+):
+    (
+        F_N,
+        At_m2,
+        p1_Pa,
+    ) = convert_many(
+        (F_lbf,'lbf','N'),
+        (At_in2,'in^2','m^2'),
+        (p1_psia,'psia','Pa'),
+    )
+
+    thrust_coef = thrust_coef_3_31_SI(
+        F_N,
+        At_m2,
+        p1_Pa
+    ) 
+
+    if verbose_printing is not None:
+        print(
+            pretty_fcn_name('thrust_coef_3_31_IM') +
+            pretty_str_key_val_to_convert_val(
+                ('F_lbf',F_lbf,'F_N',F_N),
+                ('At_in2',At_in2,'At_m2',At_m2),
+                ('p1_psia',p1_psia,'p1_Pa',p1_Pa)
+            ) + 
+            pretty_str_key_val(
+                ('thrust_coef',thrust_coef)
+            ) 
+        )
+
+    return thrust_coef 
+
+
+def small_diameter_throat_press_correction(At,A2,verbose_printing=None):
+    curr_area_ratio = At / A2
+    if  curr_area_ratio > 3.5:
+        print("   ERROR| Data does no include area_ratios > 3.5")
+        exit(1)
+
+    area_ratio = [3.5,2.0,1.0]
+    throat_press_percent = [99,96,81.]
+    result_throat_press_interp = np.interp(curr_area_ratio,area_ratio,throat_press_percent)/100
+
+    if verbose_printing is not None:
+        print(
+            pretty_fcn_name('small_diameter_throat_press_correction') +
+            pretty_str_key_val(
+                ('throat_press_precent',result_throat_press_interp),
+            )
+        )
+
+    return result_throat_press_interp
+
+
+def small_diameter_thrust_correction(At,A2,verbose_printing=None):
+    curr_area_ratio = At / A2
+    if  curr_area_ratio > 3.5:
+        print("   ERROR| Data does no include area_ratios > 3.5")
+        exit(1)
+
+    area_ratio = [3.5,2.0,1.0]
+    thrust_reduction_percent = [1.5,5,19.5]
+    result_thrust_interp = 1 - ( np.interp(curr_area_ratio,area_ratio,thrust_reduction_percent) / 100 )
+
+    if verbose_printing is not None:
+        print(
+            pretty_fcn_name('small_diameter_thrust_correction') +
+            pretty_str_key_val(
+                ('thrust_reduction_percent',result_thrust_interp),
+            )
+        )
+
+    return result_thrust_interp
+
+
+def small_diameter_specific_impulse_correction(At,A2,verbose_printing=None):
+    curr_area_ratio = At / A2
+    if  curr_area_ratio > 3.5:
+        print("   ERROR| Data does no include area_ratios > 3.5")
+        exit(1)
+
+    area_ratio = [3.5,2.0,1.0]
+    specific_impulse_reduction = [0.31,0.55,1.34]
+    result_specific_impulse_interp = 1 - (np.interp(curr_area_ratio,area_ratio,specific_impulse_reduction) / 100 )
+
+    if verbose_printing is not None:
+        print(
+            pretty_fcn_name('small_diameter_specific_impulse_correction') +
+            pretty_str_key_val(
+                ('spcific_impulse_reduction_precent',result_specific_impulse_interp),
+            )
+        )
+
+    return result_specific_impulse_interp
