@@ -18,7 +18,7 @@ def force_3_29_SI(
     p2_Pa,
     A2_m2,
     p3_Pa,
-    verbose_printing=None
+    verbose_reporting=None
 ):
     root_pt_a = 2 * kappa**2 / (kappa -1) 
     root_pt_b = (2 / (kappa + 1)) ** ((kappa + 1)/(kappa -1))
@@ -26,8 +26,8 @@ def force_3_29_SI(
 
     force_N =  At_m2 * p1_Pa * np.sqrt(root_pt_a * root_pt_b * root_pt_c) +  (A2_m2 * (p2_Pa - p3_Pa))
 
-    if verbose_printing is not None:
-        print(
+    if verbose_reporting is not None:
+        report = (
             pretty_fcn_name('force_3_29_SI') +
             pretty_str_key_val(
                 ('At_m2',At_m2),
@@ -39,6 +39,7 @@ def force_3_29_SI(
                 ('force_N',force_N)
             )
         )
+        return force_N, report
 
     return force_N
     
@@ -50,7 +51,7 @@ def force_3_29_IM(
     p2_psia,
     A2_in2,
     p3_psia,
-    verbose_printing=None
+    verbose_reporting=None
 ):
     
     (
@@ -79,8 +80,8 @@ def force_3_29_IM(
     force_lbf = convert(force_N, 'N', 'lbf')
 
 
-    if verbose_printing is not None:
-        print(
+    if verbose_reporting is not None:
+        report = (
             pretty_fcn_name('force_3_29_IM') +
             pretty_str_key_val_to_convert_val(
                 ('At_in2',At_in2,'At_m2',At_m2),
@@ -96,6 +97,7 @@ def force_3_29_IM(
                 ('kappa',kappa)
             )
         )
+        return force_lbf, report
 
     return force_lbf
 
@@ -104,13 +106,13 @@ def thrust_coef_3_31_SI(
     F_N,
     At_m2,
     p1_Pa,
-    verbose_printing=None
+    verbose_reporting=None
 ):
 
     thrust_coef = F_N / (At_m2 * p1_Pa)
 
-    if verbose_printing is not None:
-        print(
+    if verbose_reporting is not None:
+        report = (
             pretty_fcn_name('thrust_coef_3_31_SI'),
             pretty_str_key_val(
                 ('F_N',F_N),
@@ -119,6 +121,7 @@ def thrust_coef_3_31_SI(
                 ('thrust_coef',thrust_coef)
             )
         )
+        return thrust_coef,report
 
     return thrust_coef 
 
@@ -127,7 +130,7 @@ def thrust_coef_3_31_IM(
     F_lbf,
     At_in2,
     p1_psia,
-    verbose_printing=None
+    verbose_reporting=None
 ):
     (
         F_N,
@@ -145,8 +148,8 @@ def thrust_coef_3_31_IM(
         p1_Pa
     ) 
 
-    if verbose_printing is not None:
-        print(
+    if verbose_reporting is not None:
+        report = (
             pretty_fcn_name('thrust_coef_3_31_IM') +
             pretty_str_key_val_to_convert_val(
                 ('F_lbf',F_lbf,'F_N',F_N),
@@ -157,11 +160,12 @@ def thrust_coef_3_31_IM(
                 ('thrust_coef',thrust_coef)
             ) 
         )
+        return thrust_coef,report
 
     return thrust_coef 
 
 
-def small_diameter_throat_press_correction(At,A2,verbose_printing=None):
+def small_diameter_throat_press_correction(At,A2,verbose_reporting=None):
     curr_area_ratio = At / A2
     if  curr_area_ratio > 3.5:
         print("   ERROR| Data does no include area_ratios > 3.5")
@@ -169,20 +173,22 @@ def small_diameter_throat_press_correction(At,A2,verbose_printing=None):
 
     area_ratio = [3.5,2.0,1.0]
     throat_press_percent = [99,96,81.]
-    result_throat_press_interp = np.interp(curr_area_ratio,area_ratio,throat_press_percent)/100
+    throat_press_correction_percent = np.interp(curr_area_ratio,area_ratio,throat_press_percent)/100
 
-    if verbose_printing is not None:
-        print(
+    if verbose_reporting is not None:
+        report = (
             pretty_fcn_name('small_diameter_throat_press_correction') +
             pretty_str_key_val(
-                ('throat_press_precent',result_throat_press_interp),
+                ('throat_press_correction_percent',throat_press_correction_percent),
             )
         )
+        return throat_press_correction_percent, report
 
-    return result_throat_press_interp
+
+    return throat_press_correction_percent
 
 
-def small_diameter_thrust_correction(At,A2,verbose_printing=None):
+def small_diameter_thrust_correction(At,A2,verbose_reporting=None):
     curr_area_ratio = At / A2
     if  curr_area_ratio > 3.5:
         print("   ERROR| Data does no include area_ratios > 3.5")
@@ -190,35 +196,37 @@ def small_diameter_thrust_correction(At,A2,verbose_printing=None):
 
     area_ratio = [3.5,2.0,1.0]
     thrust_reduction_percent = [1.5,5,19.5]
-    result_thrust_interp = 1 - ( np.interp(curr_area_ratio,area_ratio,thrust_reduction_percent) / 100 )
+    throat_press_correction_percent = 1 - ( np.interp(curr_area_ratio,area_ratio,thrust_reduction_percent) / 100 )
 
-    if verbose_printing is not None:
-        print(
+    if verbose_reporting is not None:
+        report = (
             pretty_fcn_name('small_diameter_thrust_correction') +
             pretty_str_key_val(
-                ('thrust_reduction_percent',result_thrust_interp),
+                ('thrust_correction_percent',throat_press_correction_percent),
             )
         )
+        return throat_press_correction_percent, report 
 
-    return result_thrust_interp
+    return throat_press_correction_percent
 
 
-def small_diameter_specific_impulse_correction(At,A2,verbose_printing=None):
+def small_diameter_isp_correction(At,A2,verbose_reporting=None):
     curr_area_ratio = At / A2
     if  curr_area_ratio > 3.5:
         print("   ERROR| Data does no include area_ratios > 3.5")
         exit(1)
 
     area_ratio = [3.5,2.0,1.0]
-    specific_impulse_reduction = [0.31,0.55,1.34]
-    result_specific_impulse_interp = 1 - (np.interp(curr_area_ratio,area_ratio,specific_impulse_reduction) / 100 )
+    isp_reduction = [0.31,0.55,1.34]
+    isp_correction_percent = 1 - (np.interp(curr_area_ratio,area_ratio,isp_reduction) / 100 )
 
-    if verbose_printing is not None:
-        print(
-            pretty_fcn_name('small_diameter_specific_impulse_correction') +
+    if verbose_reporting is not None:
+        report = (
+            pretty_fcn_name('small_diameter_isp_correction') +
             pretty_str_key_val(
-                ('spcific_impulse_reduction_precent',result_specific_impulse_interp),
+                ('isp_correction_percent',isp_correction_percent),
             )
         )
+        return isp_correction_percent, report
 
-    return result_specific_impulse_interp
+    return isp_correction_percent

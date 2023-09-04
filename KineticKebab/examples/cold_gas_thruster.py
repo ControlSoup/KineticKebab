@@ -18,35 +18,36 @@ def main():
     A2_in2 = 0.5
     p3_psia = 14.696
 
-    force_lbf = force_3_29_IM(
+    force_lbf, report_force = force_3_29_IM(
         At_in2,
         p1_psia,
         gamma,
         p2_psia, 
         A2_in2,
         p3_psia,
-        verbose_printing=True
+        verbose_reporting=True
     )
-    thrust_reduction_coef = small_diameter_thrust_correction(
+    thrust_reduction_coef, thrust_reduction_report = small_diameter_thrust_correction(
         At=At_in2,
         A2=At_in2,
-        verbose_printing=True
+        verbose_reporting=True
     )
-    small_diameter_throat_press_correction(
+    _,report_throat_pres_coef =  small_diameter_throat_press_correction(
         At=At_in2,
         A2=At_in2,
-        verbose_printing=True
+        verbose_reporting=True
     )
-    small_diameter_specific_impulse_correction(
+    _, report_specific_impulse = small_diameter_isp_correction(
         At=At_in2,
         A2=At_in2,
-        verbose_printing=True
+        verbose_reporting=True
     )
-    cf = thrust_coef_3_31_IM(
+
+    cf, report_cf = thrust_coef_3_31_IM(
         force_lbf * (thrust_reduction_coef),
         At_in2,
         p1_psia,
-        verbose_printing=True
+        verbose_reporting=True
     )
 
 
@@ -54,8 +55,16 @@ def main():
         throat_area_in2=At_in2,
         exit_area_in2=A2_in2
     )
-    print(nozzel.get_report_IM(places=6))
-    nozzel.export_svg('nozzel_test','')
+
+    # Print Report
+    print(
+        report_force +
+        thrust_reduction_report +
+        report_throat_pres_coef +
+        report_specific_impulse +
+        report_cf +
+        nozzel.get_report_IM(places=6)
+    )
 
 if __name__ == '__main__':
     main()
