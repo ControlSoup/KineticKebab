@@ -4,8 +4,9 @@ from KineticKebab.common import *
 from KineticKebab.propulsion.rpe_9 import * 
 from KineticKebab.propulsion.nozzels import * 
 
-def main():
 
+
+def main():
 
     At_in2 = 0.25
     p1_psia = 114.7
@@ -18,7 +19,7 @@ def main():
     A2_in2 = 0.5
     p3_psia = 14.696
 
-    force_lbf, report_force = force_3_29_IM(
+    force_lbf, report_force = force_3_29_lbf(
         At_in2,
         p1_psia,
         gamma,
