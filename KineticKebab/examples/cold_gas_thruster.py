@@ -1,5 +1,5 @@
 import numpy as np
-from KineticKebab.fluids.compressible import * 
+from KineticKebab.fluids import * 
 from KineticKebab.common import *
 from KineticKebab.propulsion.rpe_9 import * 
 from KineticKebab.propulsion.nozzels import * 
