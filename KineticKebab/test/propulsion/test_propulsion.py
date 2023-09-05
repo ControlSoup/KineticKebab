@@ -8,14 +8,57 @@ class REP_TEST(unittest.TestCase):
         At_m2 = 0.05
         p1_Pa = 200000
         kappa = 1.2
-        R_specific_JpkgK = 3
-        T1_K = convert(80,'degF','degK')
+        R_specific_JpkgK = 300 
+        T1_K = 320
 
-        print(get_R_specific_JpkgK(
+        mdot,report_mdot = massflow_3_24_kgps(
+            At_m2,
             p1_Pa,
+            kappa,
+            R_specific_JpkgK,
             T1_K,
-            'air'
-        ))
+            verbose_reporting=True
+        ) 
+        (
+            At_in2,
+            p1_psia,
+            T1_F,
+        ) = convert_many(
+            (At_m2,'m^2','in^2'),
+            (p1_Pa,'Pa','psia'),
+            (T1_K,'degK','degF')
+        )
+
+
+        R_specific_ftlbfplbmR = 55.758760552 # Online conversion 
+
+        mdot_IM, report_mdot_IM = massflow_3_24_lbmps(
+            At_in2,
+            p1_psia,
+            kappa,
+            R_specific_ftlbfplbmR,
+            T1_F,
+            verbose_reporting=True
+        ) 
+
+        print(
+            report_mdot +
+            report_mdot_IM 
+        )
+
+        # SI Test
+        self.assertAlmostEqual(
+            mdot,
+            20.93125353, # From Desmos
+            delta=1e-3
+        )
+        # IM Test
+        self.assertAlmostEqual(
+            convert(mdot_IM,'lbm/s','kg/s'),
+            mdot,
+            delta=1e-3
+        )
+
 
     def test_3_29(self):
 
@@ -36,11 +79,6 @@ class REP_TEST(unittest.TestCase):
             p3_Pa,
             verbose_reporting=True
         ) 
-        self.assertAlmostEqual(
-            force_N,
-            8418.450625,
-            delta=1e-4
-        )
 
         # IM TEST
         (
@@ -66,17 +104,22 @@ class REP_TEST(unittest.TestCase):
             p3_psia,
             verbose_reporting=True
         )
+
+        print(
+            report_force_N +
+            report_force_lbf
+        )
+        self.assertAlmostEqual(
+            force_N,
+            8418.450625,
+            delta=1e-4
+        )
         self.assertAlmostEqual(
             force_lbf,
             1892.5429940361, # Google conversion
             delta=1e-4
         )
 
-        print(
-            report_force_N +
-            report_force_lbf
-        )
-    
     def test_thrust_coef(self):
         
         F_N = 10000

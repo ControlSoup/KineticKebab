@@ -11,6 +11,7 @@ from sys import exit
 
 from KineticKebab.common import *  
 
+
 def massflow_3_24_kgps(
     At_m2,
     p1_Pa,
@@ -22,9 +23,9 @@ def massflow_3_24_kgps(
     root_1 = np.sqrt(
         (2/(kappa + 1)) ** ((kappa + 1) / (kappa - 1))
     )
-    root_2 = np.sqrt(kappa * R * T1_K)
-    massflow_kgps = At_m2 * p1_Pa * kappa * (root_1 / root_2)
+    root_2 = np.sqrt(kappa * R_specific_JpkgK * T1_K)
 
+    massflow_kgps = At_m2 * p1_Pa * kappa * (root_1 / root_2)
 
     if verbose_reporting is not None:
         report = (
@@ -38,12 +39,15 @@ def massflow_3_24_kgps(
                 ('massflow_kgps',massflow_kgps)
             )
         )
+        return massflow_kgps, report
+    return massflow_kgps
+
 
 def massflow_3_24_lbmps(
     At_in2,
     p1_psia,
     kappa,
-    R_specific_ftlbplbmR,
+    R_specific_ftlbfplbmR,
     T1_F,
     verbose_reporting=None
 ):
@@ -53,9 +57,9 @@ def massflow_3_24_lbmps(
         R_specific_JpkgK,
         T1_K,
     ) =  convert_many(
-        (At_in2,'in^2','m^2')
-        (p1_psia,'psia','Pa')
-        (R_specific_ftlbplbmR,'ft*lbf/(lbm*degR)','J/(kg*degK)')
+        (At_in2,'in^2','m^2'),
+        (p1_psia,'psia','Pa'),
+        (R_specific_ftlbfplbmR,'(ft*lbf)/(lbm*degR)','J/(kg*degK)'),
         (T1_F,'degF','degK')
     )
 
@@ -71,19 +75,21 @@ def massflow_3_24_lbmps(
 
     if verbose_reporting is not None:
         report = (
-            pretty_fcn_name('massflow_3_24_SI') +
+            pretty_fcn_name('massflow_3_24_lbmps') +
             pretty_str_key_val_to_convert_val(
-                ('At_in2',At_in2,'At_m2',At_m2)
-                ('p1_psia',p1_psia,'p1_Pa',p1_Pa)
-                ('R_specific_ftlbplbmR',R_specific_ftlbplbmR,'R_specific_JpkgK',R_specific_JpkgK)
+                ('At_in2',At_in2,'At_m2',At_m2),
+                ('p1_psia',p1_psia,'p1_Pa',p1_Pa),
+                ('R_specific_ftlbfplbmR',R_specific_ftlbfplbmR,'R_specific_JpkgK',R_specific_JpkgK),
                 ('T1_F',T1_F,'T1_K',T1_K)
             ) +
             pretty_str_key_val(
                 ('kappa',kappa)
+            ) + 
+            pretty_str_key_val_from_convert_val(
+                ('massflow_lbmps',massflow_lbmps,'massflow_kgps',massflow_kgps)
             )
         )
         return massflow_lbmps, report
-    
     return massflow_lbmps
 
 
@@ -101,8 +107,8 @@ def force_3_29_N(
     root_pt_c = 1 - ((p2_Pa / p1_Pa)**((kappa - 1) / kappa))
 
     force_N =  At_m2 * p1_Pa * (
-        np.sqrt(root_pt_a * root_pt_b * root_pt_c) +  (A2_m2 * (p2_Pa - p3_Pa))
-    )
+        np.sqrt(root_pt_a * root_pt_b * root_pt_c)
+    ) +  (A2_m2 * (p2_Pa - p3_Pa))
 
     if verbose_reporting is not None:
         report = (
@@ -118,7 +124,6 @@ def force_3_29_N(
             )
         )
         return force_N, report
-
     return force_N
     
 
@@ -157,7 +162,6 @@ def force_3_29_lbf(
 
     force_lbf = convert(force_N, 'N', 'lbf')
 
-
     if verbose_reporting is not None:
         report = (
             pretty_fcn_name('force_3_29_IM') +
@@ -168,15 +172,14 @@ def force_3_29_lbf(
                 ('At_in2',At_in2,'A2_m2',A2_m2),
                 ('p3_psia',p3_psia,'p3_Pa',p3_Pa),
             ) +
-            pretty_str_key_val_from_convert_val(
-                ('force_lbf',force_lbf,'force_N',force_N),
-            ) +
             pretty_str_key_val(
                 ('kappa',kappa)
-            )
+            ) +
+            pretty_str_key_val_from_convert_val(
+                ('force_lbf',force_lbf,'force_N',force_N),
+            ) 
         )
         return force_lbf, report
-
     return force_lbf
 
 
@@ -191,7 +194,7 @@ def thrust_coef_3_31_SI(
 
     if verbose_reporting is not None:
         report = (
-            pretty_fcn_name('thrust_coef_3_31_SI'),
+            pretty_fcn_name('thrust_coef_3_31_SI') +
             pretty_str_key_val(
                 ('F_N',F_N),
                 ('At_m2',At_m2),
@@ -199,8 +202,7 @@ def thrust_coef_3_31_SI(
                 ('thrust_coef',thrust_coef)
             )
         )
-        return thrust_coef,report
-
+        return thrust_coef, report
     return thrust_coef 
 
 
@@ -239,7 +241,6 @@ def thrust_coef_3_31_IM(
             ) 
         )
         return thrust_coef,report
-
     return thrust_coef 
 
 
@@ -262,8 +263,6 @@ def small_diameter_throat_press_correction(At,A2,verbose_reporting=None):
             )
         )
         return throat_press_correction_percent, report
-
-
     return throat_press_correction_percent
 
 
@@ -288,7 +287,6 @@ def small_diameter_thrust_correction(At,A2,verbose_reporting=None):
             )
         )
         return throat_press_correction_percent, report 
-
     return throat_press_correction_percent
 
 
@@ -313,5 +311,4 @@ def small_diameter_isp_correction(At,A2,verbose_reporting=None):
             )
         )
         return isp_correction_percent, report
-
     return isp_correction_percent

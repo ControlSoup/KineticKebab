@@ -3,8 +3,12 @@ from pint import UnitRegistry
 # Unit Conversion wrapper 
 # ------------------------------------------------------------------------------ 
 
+STANDARD_GRAVITY_MPS2 = 9.80665
+STANDARD_GRAVITY_FTPS2 = 32.1740
+
 ureg = UnitRegistry()
 ureg.define('psia = psi')
+ureg.define('lbm = lb')
 
 def convert(value: float, in_units: str, out_units: str):
     '''
