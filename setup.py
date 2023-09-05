@@ -15,6 +15,6 @@ setup(
     author='Joe Wilson',
     author_email='joe.burge.iii@gmail.com',
     description='Engineering analysis repository for personal projects',
-    packages=find_packages(),    
+    packages=find_packages(exclude='test'),    
     install_requires=REQ_LINES,
 )
