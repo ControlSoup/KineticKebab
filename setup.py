@@ -11,10 +11,10 @@ for i in REQ_LINES:
 setup(
     name='KineticKebab',
     version='0.0.1',
-    url='https://github.com/mypackage.git',
+    url='',
     author='Joe Wilson',
     author_email='joe.burge.iii@gmail.com',
     description='Engineering analysis repository for personal projects',
-    packages=find_packages(exclude='test'),    
+    packages=find_packages(exclude='KineticKebab.test'),    
     install_requires=REQ_LINES,
 )

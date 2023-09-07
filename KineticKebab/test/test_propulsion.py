@@ -2,9 +2,10 @@ import unittest
 from KineticKebab.propulsion.rpe_9 import *
 from KineticKebab.fluids.general import *
 
-class REP_TEST(unittest.TestCase):
+class RPE_TEST(unittest.TestCase):
 
     def test_3_24(self):
+        print(f'\n==================== {RPE_TEST.__name__} ===================\n')
         At_m2 = 0.05
         p1_Pa = 200000
         kappa = 1.2
@@ -61,7 +62,7 @@ class REP_TEST(unittest.TestCase):
 
 
     def test_3_29(self):
-
+        print(f'\n==================== {RPE_TEST.__name__} ===================\n')
         # SI TEST 
         At_m2 = 0.05
         p1_Pa = 200000
@@ -121,7 +122,7 @@ class REP_TEST(unittest.TestCase):
         )
 
     def test_thrust_coef(self):
-        
+        print(f'\n==================== {RPE_TEST.__name__} ===================\n')
         F_N = 10000
         At_m2 = 0.05
         p_1_Pa = 300000 
@@ -164,7 +165,6 @@ class REP_TEST(unittest.TestCase):
             report_thrust_coef +
             report_thrust_coef_IM
         )
-
 
 
 if __name__ == '__main__':

@@ -1,14 +1,37 @@
-
 from CoolProp.CoolProp import PropsSI
 from KineticKebab.common import convert_many
+
+def get_density_SI(
+    pressure_Pa,
+    Temp_K,
+    fluid     
+):
+    return PropsSI('D','P',pressure_Pa,'T',Temp_K,fluid)
+
+
+def get_density_IM(
+    pressure_psia,
+    temp_F,
+    fluid     
+):
+    (
+        pressure_Pa,
+        temp_K
+    ) = convert_many(
+        (pressure_psia, 'psia', 'Pa')
+        (temp_F, 'degF', 'degK')
+    )
+    return PropsSI('D','P',pressure_psia,'T',temp_K,fluid)
+        
+    
 
 def get_gamma_SI(
     press_Pa,
     temp_K,
     fluid
 ):
-    Cp = PropsSI('cp',press_Pa,temp_K,fluid)
-    Cv = PropsSI('cv',press_Pa,temp_K,fluid)
+    Cp = PropsSI('CPMASS','P',press_Pa,'T',temp_K,fluid)
+    Cv = PropsSI('CVMASS','P',press_Pa,'T',temp_K,fluid)
     return Cp/Cv
 
 

@@ -27,7 +27,10 @@ def pretty_str_key_val(*key_val_tuple, places = 3):
     '''
     out_str = ''
     for tuple in key_val_tuple:
-        out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {np.round(tuple[1],places):,} \n\n'
+        if type(tuple is not float):
+            out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {tuple[1]} \n\n'
+        else:
+            out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {np.round(tuple[1],places):,} \n\n'
     return out_str
 
 
@@ -37,7 +40,10 @@ def pretty_str_key_val_from_convert_val(*key_val_convert_val, places = 3):
     '''
     out_str = f''
     for tuple in key_val_convert_val:
-        out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {np.round(tuple[1],places):,} {FROM} {SEP_START}{tuple[2]}{SEP_END} = {np.round(tuple[3],places):,}\n\n'
+        if (type(tuple[1]) is not float) or (type(tuple[3]) is not float):
+            out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {tuple[1]} {FROM} {SEP_START}{tuple[2]}{SEP_END} = {tuple[3]}\n\n'
+        else:
+            out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {np.round(tuple[1],places):,} {FROM} {SEP_START}{tuple[2]}{SEP_END} = {np.round(tuple[3],places):,}\n\n'
     return out_str
 
 
@@ -47,5 +53,8 @@ def pretty_str_key_val_to_convert_val(*key_val_convert_val, places = 3):
     '''
     out_str = f''
     for tuple in key_val_convert_val:
-        out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {np.round(tuple[1],places):,} {TO} {SEP_START}{tuple[2]}{SEP_END} = {np.round(tuple[3],places):,}\n\n'
+        if (type(tuple[1]) is not float) or (type(tuple[3]) is not float):
+            out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {tuple[1]} {TO} {SEP_START}{tuple[2]}{SEP_END} = {tuple[3]}\n\n'
+        else:
+            out_str += f'{SEP_START}{tuple[0]}{SEP_END} = {np.round(tuple[1],places):,} {TO} {SEP_START}{tuple[2]}{SEP_END} = {np.round(tuple[3],places):,}\n\n'
     return out_str
