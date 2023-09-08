@@ -43,8 +43,7 @@ def comp_orifice_mdot_kgps(
     upstrm_press_Pa,
     upstrm_temp_K,
     downstrm_press_Pa,
-    fluid: str,
-    verbose_reporting = None
+    fluid: str
 ):
     '''
     Source: 
@@ -83,20 +82,7 @@ def comp_orifice_mdot_kgps(
             2 * upstrm_density_kgpm3 * upstrm_press_Pa * gamma_UNchoked_comp * 
             (pressure_comp_1 - pressure_comp_2)
         )
-    if verbose_reporting is not None:
-        report = (
-            pretty_fcn_name('comp_orifice_mdot_kgps') +
-            pretty_str_key_val(
-                ('fluid',fluid),
-                ('Cd',Cd),
-                ('orifice_area_m2',orifice_area_m2),
-                ('upstrm_press_Pa',upstrm_press_Pa),
-                ('upstrm_temp_K',upstrm_temp_K),
-                ('downstrm_press_Pa',downstrm_press_Pa),
-                ('mdot_kgps',mdot_kgps)
-            )
-        )
-        return mdot_kgps, report
+
     return mdot_kgps 
 
 
@@ -106,8 +92,7 @@ def comp_orifice_mdot_lbmps(
     upstrm_press_psia,
     upstrm_temp_F,
     downstrm_press_psi,
-    fluid: str,
-    verbose_reporting = None
+    fluid: str
 ):
 
     (
@@ -132,22 +117,4 @@ def comp_orifice_mdot_lbmps(
 
     mdot_lbmps = convert(mdot_kgps,'kg/s','lbm/s') 
 
-    if verbose_reporting is not None:
-        report = (
-            pretty_fcn_name('comp_orifice_mdot_lbmps') +
-            pretty_str_key_val(
-                ('fluid',fluid),
-                ('Cd',Cd)
-            ) +
-            pretty_str_key_val_to_convert_val(
-                ('orifice_area_in2',orifice_area_in2,'orifice_area_m2',orifice_area_m2),
-                ('upstrm_press_psia',upstrm_press_psia,'upstrm_press_Pa',upstrm_press_Pa),
-                ('upstrm_temp_F',upstrm_temp_F,'upstrm_temp_K',upstrm_temp_K),
-                ('downstrm_press_psi',downstrm_press_psi,'downstrm_press_Pa',downstrm_press_Pa)
-            ) +
-            pretty_str_key_val_from_convert_val(
-                ('mdot_lbmps',mdot_lbmps,'mdot_kgps',mdot_kgps)
-            )
-        )
-        return mdot_lbmps, report
     return mdot_lbmps 

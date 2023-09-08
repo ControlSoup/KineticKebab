@@ -6,7 +6,6 @@ class FluidsCompressibleTest(unittest.TestCase):
 
     def test_orifice_choked_mdot(self):
         print(f'\n==================== {FluidsCompressibleTest.__name__} ===================\n')
-        report = ''
         Cd = 0.5
         orifice_area_m2 = 0.05
         upstrm_press_Pa = 300000
@@ -19,19 +18,7 @@ class FluidsCompressibleTest(unittest.TestCase):
             upstrm_temp_K,
             fluid
         )
-        density_kgpm3 = get_density_SI(
-            upstrm_press_Pa,
-            upstrm_temp_K,
-            fluid
-        )
 
-        report += pretty_str_key_val(
-            ('gamma',gamma),
-            ('density_kgpm3',density_kgpm3),
-        )
-
-        print(report)
-    
         # Ensure inputs are choked
         self.assertTrue(
             comp_is_choked(
@@ -41,14 +28,13 @@ class FluidsCompressibleTest(unittest.TestCase):
             )
         )
 
-        mdot_kgps, SI_repot = comp_orifice_mdot_kgps(
+        mdot_kgps = comp_orifice_mdot_kgps(
             Cd,
             orifice_area_m2,
             upstrm_press_Pa,
             upstrm_temp_K,
             downstrm_press_Pa,
-            fluid,
-            verbose_reporting=True
+            fluid
         )
         
         (
@@ -62,20 +48,15 @@ class FluidsCompressibleTest(unittest.TestCase):
             (upstrm_temp_K,'degK','degF'),
             (downstrm_press_Pa,'Pa','psia')
         )
-        mdot_lbmps, IM_report = comp_orifice_mdot_lbmps(
+        mdot_lbmps = comp_orifice_mdot_lbmps(
             Cd,
             orifice_area_in2,
             upstrm_press_psia,
             upstrm_temp_F,
             downstrm_press_psia,
             fluid,
-            verbose_reporting=True
         )
 
-        print(
-            SI_repot,
-            IM_report
-        )
 
         self.assertAlmostEqual(
             mdot_kgps,

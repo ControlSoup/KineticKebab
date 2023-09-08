@@ -46,3 +46,10 @@ def circle_diameter_from_area(area):
 
 def circle_radius_from_area(area):
     return np.sqrt(area  / np.pi)
+
+# ------------------------------------------------------------------------------ 
+# Tubes
+# ------------------------------------------------------------------------------ 
+
+def tube_inner_surface_area(r, h):
+    return 2 * np.pi * r  * h
