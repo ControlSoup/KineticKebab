@@ -1,4 +1,0 @@
-CoolProp>=6.5.0.post1
-numpy>=1.21.5
-Pint>=0.22
-setuptools>=59.6.0
