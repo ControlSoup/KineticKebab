@@ -10,115 +10,143 @@ pub struct IdealGas{
 
 impl IdealGas{
     /// Initializes an ideal gas based on $c_p$ and $c_v$.
-    /// 
+    ///
     /// # Ratio of Specific Heats
-    /// 
-    /// $ \gamma = \frac{c_p}{c_v} $ 
+    ///
+    /// $ \gamma = \frac{c_p}{c_v} $
     /// <a href=https://en.wikipedia.org/wiki/Heat_capacity_ratio#>
     /// (also called the heat capacity ratio) </a>
-    /// 
+    ///
     /// # Specific Gas Constant
-    /// 
+    ///
     /// $ r = c_p - c_v$ from
     /// <a href=https://en.wikipedia.org/wiki/Julius_von_Mayer> Mayers relation </a>
-    /// 
-    /// 
+    ///
+    ///
     /// ## Units
-    /// 
+    ///
     /// $c_p: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant pressure
-    /// 
+    ///
     /// $c_v: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant volume
-    /// 
+    ///
     /// $\gamma: [\textrm{unitless}]$ Ratio of specific heats
-    /// 
+    ///
     /// $r: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific gas constant
-    /// 
+    ///
     fn new(cp: f64, cv: f64) -> IdealGas{
         return IdealGas{
             cp,
             cv,
             gamma: cp / cv,
-            r_specific: cp - cv 
+            r_specific: cp - cv
         }
     }
 }
 
 impl Fluid for IdealGas{
     // $ \rho = \frac{P}{rT} $
-    // 
-    // Density formulation of the 
+    //
+    // Density formulation of the
     // <a href=https://en.wikipedia.org/wiki/Ideal_gas_law> Ideal Gas Law </a>
-    // 
+    //
     // ## Units
-    // 
-    // $P: [\textrm{Pa}]$ Pressure 
-    // 
+    //
+    // $P: [\textrm{Pa}]$ Pressure
+    //
     // $T: [\textrm{degK}]$ Temperature
-    // 
+    //
     // $\rho: [\frac{\textrm{kg}}{\textrm{m}^3}]$ Density
-    // 
+    //
     // $r: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific gas constant
     fn density_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
         return pressure / (self.r_specific * temperature)
     }
 
     /// $ h = T(c_v + r)$
-    /// 
+    ///
     /// For an ideal gas, the specific enthalpy
     /// will only be a function of temperature.
-    /// 
-    /// $[h = u + \frac{P}{\rho}]$    and    $[u = c_vT]$ 
+    ///
+    /// $[h = u + \frac{P}{\rho}]$    and    $[u = c_vT]$
     /// give: $[h = c_vT + \frac{P}{\rho}]$
-    /// 
-    /// substituiting the density formulation of the 
+    ///
+    /// substituiting the density formulation of the
     /// <a href=https://en.wikipedia.org/wiki/Ideal_gas_law> Ideal Gas Law </a>:
     /// $[ P = T \rho r]$
-    /// 
-    /// Gives the final 
+    ///
+    /// Gives the final
     /// equation of specific_enthalpy as a function only of temperature and constants
-    ///  
+    ///
     /// ## Units
-    /// 
-    /// $P: [\textrm{Pa}]$ Pressure 
-    /// 
+    ///
+    /// $P: [\textrm{Pa}]$ Pressure
+    ///
     /// $T: [\textrm{degK}]$ Temperature
-    /// 
+    ///
     /// $\rho: [\frac{\textrm{kg}}{\textrm{m}^3}]$ Density
-    /// 
+    ///
     /// $r: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific gas constant
-    /// 
+    ///
     /// $c_v: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant volume
     fn enthalpy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
         return temperature * (self.cv + self.r_specific)
     }
 
     /// $u = c_vT$
-    /// 
-    /// For an ideal gas, the specific internal energy 
+    ///
+    /// For an ideal gas, the specific internal energy
     /// will only be a function of temperature.
-    /// 
-    ///  
+    ///
+    ///
     /// ## Units
-    /// 
-    /// $u: [\frac{\textrm{J}}{\textrm{kg}}]$ Specific internal energy 
-    /// 
+    ///
+    /// $u: [\frac{\textrm{J}}{\textrm{kg}}]$ Specific internal energy
+    ///
     /// $T: [\textrm{degK}]$ Temperature
-    /// 
+    ///
     /// $c_v: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant volume
     fn energy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
-       return self.cv * temperature 
-    } 
+       return self.cv * temperature
+    }
 
     /// $c_p / c_v$
-    /// 
+    ///
     /// Ratio of specific heats
-    /// 
+    ///
     /// ## Units
-    /// 
+    ///
     /// $c_v: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant volume
-    /// 
-    /// $c_p: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant pressure 
-    fn gamma(&self) -> f64 {
+    ///
+    /// $c_p: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant pressure
+    fn get_gamma(&self) -> f64 {
         return self.gamma
     }
+
+    /// $P = \frac{u\rhor}{c_v}$
+    ///
+    /// Using the density formulation of the
+    /// <a href=https://en.wikipedia.org/wiki/Ideal_gas_law> Ideal Gas Law </a>:
+    /// $[ P = T \rho r]$
+    ///
+    /// And the defintion of internal energy: [$u = c_vT$]
+    ///
+    /// Substitute internal energy for temperature inthe ideal gas low to get
+    /// the final equation pressure in terms of energy and density
+    ///
+    fn pressure_du_lookup(&self, density: f64, energy: f64) -> f64 {
+        return energy * density / self.cv
+    }
+
+    /// $T = \frac{u}{c_v}
+    ///
+    /// For an gas that follows the
+    /// <a href=https://en.wikipedia.org/wiki/Ideal_gas_law> Ideal Gas Law </a>:
+    ///
+    /// Internal energy is only a funciton of temperature, so density is not needed
+    /// to calculate temperature from energy
+    ///
+    fn temperature_du_lookup(&self, density: f64, energy: f64) -> f64 {
+        return energy / self.cv
+    }
+
 }
