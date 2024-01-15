@@ -3,40 +3,33 @@ use std::ops::{Mul, Div, Add};
 
 pub trait Integrate{
 
-    fn effects(&mut self){()}
+    fn get_derivative(&mut self)-> Self;
 
-    fn get_derivative(&self)-> Self;
-
-    fn rk4(&mut self, dt: f64) -> Self
+    fn rk4(&mut self, dt: f64)
         where Self:
             Sized +
-            Clone +
+            Copy +
             Add<Self, Output = Self> +
             Mul<f64, Output = Self> +
             Div<f64, Output = Self>,
     {
-        self.effects();
-
         let k1 = self.get_derivative();
-        let k2 = (self.clone() + (k1.clone() * dt / 2.0)).get_derivative();
-        let k3 = (self.clone() + (k2.clone() * dt / 2.0)).get_derivative();
-        let k4 = (self.clone() + k3.clone() * dt).get_derivative();
+        let k2 = (*self + (k1 * dt / 2.0)).get_derivative();
+        let k3 = (*self + (k2 * dt / 2.0)).get_derivative();
+        let k4 = (*self + k3 * dt).get_derivative();
 
-        return self.clone() + ((k1 + (k2 * 2.0) + (k3 * 2.0) + k4) * dt / 6.0)
+        *self =  *self + ((k1 + (k2 * 2.0) + (k3 * 2.0) + k4) * dt / 6.0)
     }
 
-    fn euler(&mut self, dt: f64)-> Self
+    fn euler(&mut self, dt: f64)
         where
             Self:
                 Sized +
-                Clone +
+                Copy +
                 Add<Self, Output = Self> +
                 Mul<f64, Output = Self>
     {
-        self.effects();
-
-        let euler =  self.clone() + (self.get_derivative() * dt);
-        return euler
+        *self =  *self + (self.get_derivative() * dt);
     }
 }
 
@@ -89,11 +82,9 @@ mod tests {
 
     impl Integrate for Location{
 
-        fn effects(&mut self) {
+        fn get_derivative(&mut self)-> Self {
             self.acceleration = self.force / self.mass;
-        }
 
-        fn get_derivative(&self)-> Self {
             let mut derivative = Location::zeros();
             derivative.velocity = self.acceleration;
             derivative.position = self.velocity;
@@ -113,7 +104,7 @@ mod tests {
         let closest_int: i64 = (time / dt) as i64;
 
         for _ in 0..closest_int{
-            test_vehicle = test_vehicle.euler(dt);
+            test_vehicle.euler(dt);
         }
 
         // vf = vi + (f/m)t = [10.0]
@@ -142,7 +133,7 @@ mod tests {
         let closest_int: i64 = (time / dt) as i64;
 
         for _ in 0..closest_int{
-            test_vehicle = test_vehicle.rk4(dt);
+            test_vehicle.rk4(dt);
         }
 
         // vf = vi + (f/m)t = [10.0]

@@ -88,7 +88,7 @@ impl Runtime{
     }
 
     pub fn value_set(&mut self, key: &str, value: f64){
-        // Read the current value
+        // Write the current value
         if let Some(array) = self.data_dict.get_mut(key){
             array[self.current_index] = value;
         } else{
@@ -142,7 +142,7 @@ impl Runtime{
         let path = Path::new(file_path);
 
         // Attempt to write to this path and overwrite
-        let mut writer = match csv::Writer::from_path(&path){
+        let mut writer = match csv::Writer::from_path(path){
             Ok(file) => file,
             Err(err) => {
                 panic!(
@@ -157,11 +157,17 @@ impl Runtime{
         self.trim_from_curr_index();
 
         // Sort Alphabetically
-        let sorted_datadict: BTreeMap<String, Vec<f64>> =
-            self.data_dict.clone().into_iter().collect();
+        let sorted_datadict: BTreeMap<String, Vec<f64>> = self.data_dict
+            .clone()
+            .into_iter()
+            .collect();
 
         // Header
-        let mut header: Vec<&str> = sorted_datadict.keys().map(|s| s.as_str()).collect();
+        let mut header: Vec<&str> = sorted_datadict
+            .keys()
+            .map(|s| s.as_str())
+            .collect();
+
         header.push(self.x_key.as_str());
 
         writer.write_record(&header).unwrap();
@@ -193,12 +199,11 @@ impl Runtime{
 
 }
 pub trait Save{
-    fn save_data(&self, prefix: String, runtime: &mut Runtime) where Self: Sized;
+    fn save_data(&self, prefix: &str, runtime: &mut Runtime) where Self: Sized;
 
-    fn save_data_verbose(&self, prefix: String, runtime: &mut Runtime) where Self: Sized{
+    fn save_data_verbose(&self, prefix: &str, runtime: &mut Runtime) where Self: Sized{
         // Allow one call for verbose and non verbose data
         self.save_data(prefix, runtime);
-        return ()
     }
 }
 

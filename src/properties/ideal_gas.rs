@@ -1,5 +1,3 @@
-use super::Fluid;
-
 pub struct IdealGas{
     cp: f64,
     cv: f64,
@@ -33,7 +31,7 @@ impl IdealGas{
     ///
     /// $r: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific gas constant
     ///
-    fn new(cp: f64, cv: f64) -> IdealGas{
+    pub fn new(cp: f64, cv: f64) -> IdealGas{
         return IdealGas{
             cp,
             cv,
@@ -43,7 +41,7 @@ impl IdealGas{
     }
 }
 
-impl Fluid for IdealGas{
+impl IdealGas{
     // $ \rho = \frac{P}{rT} $
     //
     // Density formulation of the
@@ -58,11 +56,11 @@ impl Fluid for IdealGas{
     // $\rho: [\frac{\textrm{kg}}{\textrm{m}^3}]$ Density
     //
     // $r: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific gas constant
-    fn density_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
+    pub fn density_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
         return pressure / (self.r_specific * temperature)
     }
 
-    /// $ h = T(c_v + r)$
+    /// $ h = Tcp$
     ///
     /// For an ideal gas, the specific enthalpy
     /// will only be a function of temperature.
@@ -74,8 +72,10 @@ impl Fluid for IdealGas{
     /// <a href=https://en.wikipedia.org/wiki/Ideal_gas_law> Ideal Gas Law </a>:
     /// $[ P = T \rho r]$
     ///
+    /// and using the definition of the specific gas constant
+    ///
     /// Gives the final
-    /// equation of specific_enthalpy as a function only of temperature and constants
+    /// equation of sp_enthalpy as a function only of temperature and constants
     ///
     /// ## Units
     ///
@@ -88,8 +88,8 @@ impl Fluid for IdealGas{
     /// $r: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific gas constant
     ///
     /// $c_v: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant volume
-    fn enthalpy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
-        return temperature * (self.cv + self.r_specific)
+    pub fn sp_enthalpy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
+        return temperature * self.cp
     }
 
     /// $u = c_vT$
@@ -105,7 +105,7 @@ impl Fluid for IdealGas{
     /// $T: [\textrm{degK}]$ Temperature
     ///
     /// $c_v: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant volume
-    fn energy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
+    pub fn sp_energy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
        return self.cv * temperature
     }
 
@@ -118,7 +118,7 @@ impl Fluid for IdealGas{
     /// $c_v: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant volume
     ///
     /// $c_p: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant pressure
-    fn get_gamma(&self) -> f64 {
+    pub fn gamma(&self) -> f64 {
         return self.gamma
     }
 
@@ -133,8 +133,8 @@ impl Fluid for IdealGas{
     /// Substitute internal energy for temperature inthe ideal gas low to get
     /// the final equation pressure in terms of energy and density
     ///
-    fn pressure_du_lookup(&self, density: f64, energy: f64) -> f64 {
-        return energy * density / self.cv
+    pub fn pressure_du_lookup(&self, density: f64, sp_energy: f64) -> f64 {
+        return sp_energy * density / self.cv
     }
 
     /// $T = \frac{u}{c_v}
@@ -145,8 +145,8 @@ impl Fluid for IdealGas{
     /// Internal energy is only a funciton of temperature, so density is not needed
     /// to calculate temperature from energy
     ///
-    fn temperature_du_lookup(&self, density: f64, energy: f64) -> f64 {
-        return energy / self.cv
+    pub fn temperature_du_lookup(&self, density: f64, sp_energy: f64) -> f64 {
+        return sp_energy / self.cv
     }
 
 }
