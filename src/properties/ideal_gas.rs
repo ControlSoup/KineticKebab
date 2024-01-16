@@ -1,8 +1,10 @@
+pub const STD_ATM_PA: f64 = 101_325.0;
+pub const STD_ATM_DEGK: f64 = 288.15;
+
 pub struct IdealGas{
     cp: f64,
     cv: f64,
-    gamma: f64,
-    r_specific: f64
+    sp_r: f64
 }
 
 
@@ -35,8 +37,7 @@ impl IdealGas{
         return IdealGas{
             cp,
             cv,
-            gamma: cp / cv,
-            r_specific: cp - cv
+            sp_r: cp - cv
         }
     }
 }
@@ -57,7 +58,7 @@ impl IdealGas{
     //
     // $r: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific gas constant
     pub fn density_pt_lookup(&self, pressure: f64, temperature: f64) -> f64 {
-        return pressure / (self.r_specific * temperature)
+        return pressure / (self.sp_r * temperature)
     }
 
     /// $ h = Tcp$
@@ -92,6 +93,11 @@ impl IdealGas{
         return temperature * self.cp
     }
 
+    /// $ s = c_v\frac{T}{T_{\textrm{std}}} + r\frac{P}{P_\textrm{std}}$
+    pub fn sp_entropy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64{
+        return (self.cv * (temperature / STD_ATM_DEGK).ln()) + (self.sp_r * (pressure / STD_ATM_PA).ln())
+    }
+
     /// $u = c_vT$
     ///
     /// For an ideal gas, the specific internal energy
@@ -119,7 +125,22 @@ impl IdealGas{
     ///
     /// $c_p: [\frac{\textrm{J}}{\textrm{kg}\textrm{K}}]$ Specific heat capacity at constant pressure
     pub fn gamma(&self) -> f64 {
-        return self.gamma
+        return self.cp / self.cv
+    }
+
+    /// $c_{\textrm{ideal}} = \sqrt{\gamma\frac{P}{\rho}}}
+    ///
+    /// <a href=https://en.wikipedia.org/wiki/Speed_of_sound> Speed of Sound</a>:
+    /// ## Units
+    ///
+    /// $\gamma: [-]$ Ratio of specific heats
+    ///
+    /// $P: [\textrm{Pa}]$ Pressure
+    ///
+    /// $\rho: [\frac{\textrm{kg}}{\textrm{m}^3}]$ Pressure
+    ///
+    pub fn speed_of_sound_pd_lookup(&self, pressure: f64, density: f64) -> f64 {
+        return (self.gamma() * (pressure / density)).sqrt()
     }
 
     /// $P = \frac{u\rhor}{c_v}$

@@ -80,12 +80,12 @@ impl ConserveME{
 impl sim::Save for ConserveME{
 
     fn save_data(&self, prefix: &str, runtime: &mut sim::Runtime) where Self: Sized {
-        runtime.add_or_set(format!(
-            "{prefix}.mdot [kg/s]").as_str(),
+        runtime.add_or_set(&format!(
+            "{prefix}.mdot [kg/s]"),
             self.mdot
         );
-        runtime.add_or_set(format!(
-            "{prefix}.udot [J/s]").as_str(),
+        runtime.add_or_set(&format!(
+            "{prefix}.udot [J/s]"),
             self.udot
         );
 
@@ -93,21 +93,21 @@ impl sim::Save for ConserveME{
 
     fn save_data_verbose(&self, prefix: &str, runtime: &mut sim::Runtime) where Self: Sized {
         self.save_data(prefix, runtime);
-        runtime.add_or_set(format!(
-            "{prefix}.mdot_in [kg/s]").as_str(),
+        runtime.add_or_set(&format!(
+            "{prefix}.mdot_in [kg/s]"),
             self.mdot_in
         );
-        runtime.add_or_set(format!(
-            "{prefix}.mdot_out [kg/s]").as_str(),
+        runtime.add_or_set(&format!(
+            "{prefix}.mdot_out [kg/s]"),
             self.mdot_out
         );
 
-        runtime.add_or_set(format!(
-            "{prefix}.energy_in [J]").as_str(),
+        runtime.add_or_set(&format!(
+            "{prefix}.energy_in [J]"),
             self.energy_in
         );
-        runtime.add_or_set(format!(
-            "{prefix}.energy_out [J]").as_str(),
+        runtime.add_or_set(&format!(
+            "{prefix}.energy_out [J]"),
             self.energy_out
         );
     }

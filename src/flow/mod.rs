@@ -12,8 +12,8 @@ use crate::props;
 
 pub trait FlowComponet<V: Volume>{
     fn calc_mdot(&mut self) -> f64;
-    fn connection_in(&self) -> &V;
-    fn connection_out(&self) -> &V;
+    fn connection_in(&mut self) -> &mut V;
+    fn connection_out(&mut self) -> &mut V;
 }
 
 impl<V: Volume> sim::Update for dyn FlowComponet<V>{
@@ -24,7 +24,7 @@ impl<V: Volume> sim::Update for dyn FlowComponet<V>{
         let fluid_state = connection.get_fluidstate();
         let conservation = connection.get_conservation();
 
-        // If the volume wants to conserver, do so!
+        // If the volume wants to conserve, do so!
         match conservation{
             Some(conservation) => {
                 conservation.add_mdot_in(mdot);

@@ -1,113 +1,102 @@
-use super::ideal_gas::{IdealGas, self};
-
-use crate::sim;
+use std::str::pattern::DoubleEndedSearcher;
 
 use coolprop_rs::PropsSI;
+
+use super::IdealGas;
+use crate::{sim, props::fluid};
+
 pub enum FluidLookup{
-    Ideal{
-        ideal_gas: IdealGas
-    },
-    Real{
-        name: String
-    }
+    Ideal{ideal_gas: IdealGas},
+    Real{name: String}
 }
 
 impl FluidLookup{
-    fn sp_energy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64{
-        match *self{
-            FluidLookup::Ideal{ideal_gas} => {
-                return ideal_gas.sp_energy_pt_lookup(pressure, temperature);
-            },
-            FluidLookup::Real{name} => {
-                return PropsSI("UMASS", "P", pressure, "T", temperature, name.as_str()h)
+
+    fn intensive_pt_update(&self, pressure: f64, temperature: f64, fluid_state: &mut FluidState){
+        use FluidLookup::{Ideal,Real};
+
+        fluid_state.pressure = pressure;
+        fluid_state.temperature = temperature;
+
+        match self{
+            Ideal{ ideal_gas } =>{
+                // pressure
+                // temperature
+                fluid_state.density = ideal_gas.density_pt_lookup(pressure, temperature);
+                fluid_state.sp_energy = ideal_gas.sp_energy_pt_lookup(pressure, temperature);
+                fluid_state.sp_enthalpy = ideal_gas.sp_enthalpy_pt_lookup(pressure, temperature);
+                fluid_state.sp_entropy = ideal_gas.sp_entropy_pt_lookup(pressure, temperature);
+                fluid_state.speed_of_sound = ideal_gas.speed_of_sound_pd_lookup(pressure, fluid_state.density);
+                // gamma
+            }
+            Real{ name } => { // Should this be a simplifer method to prevent error?
+                // pressure
+                // temperature
+                fluid_state.density = PropsSI("D", "P", pressure, "T", temperature, &name).unwrap();
+                fluid_state.sp_energy = PropsSI("UMASS","P", pressure, "T", temperature, &name).unwrap();
+                fluid_state.sp_enthalpy = PropsSI("HMASS","P", pressure, "T", temperature, &name).unwrap();
+                fluid_state.sp_entropy = PropsSI("SMASS","P", pressure, "T", temperature, &name).unwrap();
+                fluid_state.speed_of_sound = PropsSI("A","P", pressure, "T", temperature, &name).unwrap();
+                fluid_state.gamma = PropsSI("ISENTROPIC_EXPANSION_COEFFICIENT", "P", pressure, "T", temperature, &name).unwrap();
             }
         }
     }
 
-    fn sp_enthalpy_pt_lookup(&self, pressure: f64, temperature: f64) -> f64{
-        match *self{
-            FluidLookup::Ideal{ideal_gas} => {
-                return ideal_gas.sp_energy_pt_lookup(pressure, temperature);
-            },
-            FluidLookup::Real{name} => {
-                return PropsSI("HMASS", "P", pressure, "T", temperature, name.as_str())
+    fn intensive_du_update(&self, density: f64, sp_energy: f64, fluid_state: &mut FluidState){
+        use FluidLookup::{Ideal,Real};
+
+        fluid_state.density = density;
+        fluid_state.sp_energy = sp_energy;
+
+        match self{
+            Ideal{ ideal_gas } => {
+                fluid_state.pressure = ideal_gas.pressure_du_lookup(density, sp_energy);
+                fluid_state.temperature = ideal_gas.temperature_du_lookup(density, sp_energy);
+                // density
+                // sp_energy
+                fluid_state.sp_entropy = ideal_gas.sp_entropy_pt_lookup(fluid_state.pressure, fluid_state.temperature);
+                fluid_state.speed_of_sound = ideal_gas.speed_of_sound_pd_lookup(fluid_state.pressure, fluid_state.density);
+                // gamma
+            }
+            Real { name } =>{
+                fluid_state.pressure = PropsSI("P", "D", density, "UMASS", sp_energy, &name).unwrap();
+                fluid_state.temperature = PropsSI("T", "D", density, "UMASS", sp_energy, &name).unwrap();
+                // density
+                // sp_energy
+                fluid_state.sp_entropy = PropsSI("SMASS", "D", density, "UMASS", sp_energy, &name).unwrap();
+                fluid_state.speed_of_sound = PropsSI("A", "D", density, "UMASS", sp_energy, &name).unwrap();
+                fluid_state.gamma = PropsSI("ISENTROPIC_EXPANSION_COEFFICIENT", "D", density, "UMASS", sp_energy, &name).unwrap();
             }
         }
-    }
-
-    fn density_pt_lookup(&self, pressure: f64, temperature: f64) -> f64{
-        match *self{
-            FluidLookup::Ideal{ideal_gas} => {
-                return ideal_gas.density_pt_lookup(pressure, temperature);
-            },
-            FluidLookup::Real{name} => {
-                return PropsSI("D", "P", pressure, "T", temperature, name.as_str())
-            }
-        }
-    }
-
-    fn pressure_du_lookup(&self, density: f64, sp_energy: f64) -> f64{
-        match *self{
-            FluidLookup::Ideal{ideal_gas} => {
-                return ideal_gas.pressure_du_lookup(density, sp_energy);
-            },
-            FluidLookup::Real{name} => {
-                return PropsSI("P", "D", density, "UMASS", sp_energy, name.as_str())
-            }
-        }
-    }
-
-    fn temperature_du_lookup(&self, density: f64, sp_energy: f64) -> f64{
-        match *self{
-            FluidLookup::Ideal{ideal_gas} => {
-                return ideal_gas.temperature_du_lookup(density, sp_energy);
-            },
-            FluidLookup::Real{name} => {
-                return PropsSI("T", "D", density, "UMASS", sp_energy, name.as_str())
-            }
-        }
-    }
-
-    fn gamma_pt_lookup(&self, pressure: f64, temperature: f64) -> f64{
-        match *self{
-            FluidLookup::Ideal{ideal_gas} => {
-                return ideal_gas.gamma();
-            },
-            FluidLookup::Real{name} => {
-                return PropsSI("ISENTROPIC_EXPANSION_COEFFICIENT", "P", pressure, "T", temperature, name.as_str())
-            }
-        };
 
     }
 
-    fn speed_of_sound_ps_lookup(&self, pressure: f64, sp_entropy: f64) -> Option<f64>{
-        match *self{
-            FluidLookup::Ideal{ideal_gas} => {
+    fn extensive_mu_udpate(&self, mass: f64, energy: f64, fluid_state: &mut FluidState){
 
-            },
-            FluidLookup::Real{name} => {
-                return PropsSI("A", "P", pressure, "SMASS", sp_entropy, name)
-            }
-        }
+        // Update the new mass
+        fluid_state.mass = mass;
+
+        // Calculate new density and specific energy
+        self.intensive_du_update(mass / fluid_state.volume, energy / mass, fluid_state);
+
     }
-
 }
 
-/// Stores intensive and extensive properties with a fluid
+/// Stores fluid_state and extensive properties with a fluid
 pub struct FluidState{
-    // Intensive
     pressure: f64,
     temperature: f64,
     density: f64,
     sp_energy: f64,
     sp_enthalpy: f64,
-    gamma: f64,
+    sp_entropy: f64,
     speed_of_sound: f64,
+    gamma: f64, // Isentropic Expansion Coefficent
 
-    // Extensive
     mass: f64,
     volume: f64,
-    fluid_lookup: FluidLookup
+
+    update_method: FluidLookup
 }
 
 impl FluidState{
@@ -125,50 +114,41 @@ impl FluidState{
     pub fn sp_energy(&self) -> f64{self.sp_energy}
     pub fn sp_enthalpy(&self) -> f64{self.sp_enthalpy}
     pub fn gamma(&self) -> f64{self.gamma}
-    pub fn speed_of_sound(&self) -> f64{self.speed_of_sound}
-    pub fn mass(&self) -> f64{self.mass}
-    pub fn volume(&self) -> f64{self.volume}
-    pub fn fluid_lookup_method(&self) -> FluidLookup{self.fluid_lookup}
+    pub fn update_method(&self) -> FluidLookup{self.update_method}
+
+    fn null_volume(volume: f64, update_method: FluidLookup) -> Self{
+        return FluidState{
+            pressure: 0.0,
+            temperature: 0.0,
+            density: 0.0,
+            sp_energy: 0.0,
+            sp_enthalpy: 0.0,
+            sp_entropy: 0.0,
+            speed_of_sound: 0.0,
+            gamma: 0.0,
+            mass: 0.0,
+            volume,
+            update_method
+        }
+    }
 
     pub fn new_from_ptv(
         pressure: f64,
         temperature: f64,
         volume: f64,
-        fluid_lookup: FluidLookup
-    ) -> FluidState{
+        update_method: FluidLookup
+    ) -> Self{
+        let mut fluid_state = FluidState::null_volume(volume, update_method);
 
-        let density = fluid_lookup.density_pt_lookup(pressure, temperature);
+        // Update intensive properties
+        fluid_state.update_method.intensive_pt_update(pressure, temperature, &mut fluid_state);
 
-        return FluidState{
-            pressure,
-            temperature,
-            density,
-            sp_energy: fluid_lookup.sp_energy_pt_lookup(pressure, temperature),
-            sp_enthalpy: fluid_lookup.sp_enthalpy_pt_lookup(pressure, temperature),
-            gamma: fluid_lookup.gamma_pt_lookup(pressure, temperature),
-            mass: density * volume,
-            volume,
-            fluid_lookup
-        }
+        // Update mass based on calculated intensive density
+        fluid_state.mass = volume / fluid_state.density;
+
+        return fluid_state
     }
 
-    /// Updates the state based on mass and specific energy
-    ///
-    /// Updates energy and mass. Calculates the new intensive
-    /// property density from the current volume
-    ///
-    /// Using density and sp_energy, looks up new pressure and temp data
-    ///
-    /// Using new pressure and temp data, looks up sp_enthalpy
-    ///
-    pub fn update_from_mu(&mut self, mdot: f64, energy: f64){
-        self.mass += mdot;
-        self.density = self.mass / self.volume;
-        self.sp_energy = energy / self.mass;
-        self.pressure = self.fluid_lookup.pressure_du_lookup(self.density, self.sp_energy);
-        self.temperature = self.fluid_lookup.temperature_du_lookup(self.density, self.sp_energy);
-        self.sp_enthalpy = self.fluid_lookup.sp_energy_pt_lookup(self.pressure, self.temperature);
-    }
 }
 
 impl sim::Save for FluidState{
