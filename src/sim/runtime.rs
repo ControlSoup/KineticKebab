@@ -10,7 +10,7 @@ pub struct Runtime{
     x_increment: f64,
     x_array: Vec<f64>,
     current_index: usize,
-    pub is_running: bool,
+    is_running: bool,
     data_dict: HashMap<String, Vec<f64>>
 }
 
@@ -119,6 +119,10 @@ impl Runtime{
 
     pub fn get_max_x(&self) -> f64{
         return self.x_array[(self.x_array.len() - 1)..][0]
+    }
+
+    pub fn is_running(&self) -> bool{
+        return self.is_running
     }
 
     fn trim_from_curr_index(&mut self){

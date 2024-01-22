@@ -1,49 +1,39 @@
-//! Componets used for calculating flow conditions
-//!
-//! ## Sources
-//! - <a href=https://en.wikipedia.org/wiki/Orifice_plate>Orifice Equations</a>
-//! - <a href=ihttps://en.wikipedia.org/wiki/Choked_flow>Choked Flow Equation</a>
-//!
-pub mod orifice;
-
 use crate::volume::Volume;
-use crate::sim;
-use crate::props;
 
-pub trait FlowComponet<V: Volume>{
+pub mod orifice;
+pub use orifice::RealOrifice;
+use std::rc::Rc;
+
+pub trait FlowRestriction<V: Volume>{
     fn calc_mdot(&mut self) -> f64;
-    fn connection_in(&mut self) -> &mut V;
-    fn connection_out(&mut self) -> &mut V;
-}
-
-impl<V: Volume> sim::Update for dyn FlowComponet<V>{
-    fn update(&mut self) {
+    fn get_connection_in(&mut self) -> Rc<V>;
+    fn get_connection_out(&mut self) -> Rc<V>;
+    fn transfer_state(&mut self){
         let mdot = self.calc_mdot();
 
-        let mut connection = self.connection_in();
-        let fluid_state = connection.get_fluidstate();
-        let conservation = connection.get_conservation();
+        let mut connection_in = self.get_connection_in();
+        let conservation  = connection_in.get_conservation();
+        let intensive_state = connection_in.get_intensive_state();
 
         // If the volume wants to conserve, do so!
         match conservation{
-            Some(conservation) => {
+            Some(mut conservation) => {
                 conservation.add_mdot_in(mdot);
-                conservation.add_energy_in(mdot * fluid_state.sp_enthalpy());
+                conservation.add_energy_in(mdot * intensive_state.sp_enthalpy());
             }
             None =>{}
         }
 
-        let mut connection = self.connection_out();
-        let fluid_state = connection.get_fluidstate();
-        let conservation = connection.get_conservation();
+        let mut connection_out = self.get_connection_out();
+        let conservation  = connection_out.get_conservation();
+        let intensive_state = connection_out.get_intensive_state();
+
         match conservation{
-            Some(conservation) => {
+            Some(mut conservation) => {
                 conservation.add_mdot_out(mdot);
-                conservation.add_energy_out(mdot * fluid_state.sp_enthalpy());
+                conservation.add_energy_out(mdot * intensive_state.sp_enthalpy());
             }
             None =>{}
         }
-
     }
 }
-

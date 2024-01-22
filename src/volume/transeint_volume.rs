@@ -1,52 +1,51 @@
-use super::ConserveME;
-
-use crate::properties as props;
-use crate::flow;
+use std::ops::Add;
+use std::rc::Rc;
 use crate::sim;
+use crate::props;
+use crate::sim::Integrate;
+use crate::sim::Save;
+use super::{ConserveME, Volume};
 
-use super::Volume;
-
-pub struct TransientVolume<F: props::Fluid>{
+pub struct TransientVolume{
     node_name: String,
-    fluid_state: props::FluidState<F>,
-    conservation: ConserveME
+    intensive_state: props::IntensiveState,
+    conservation: ConserveME,
+    volume: f64
 }
 
-impl<F: props::Fluid> TransientVolume<F>{
-    fn new(
-        node_name: String,
+impl TransientVolume{
+    fn new_from_vpt(
+        node_name: &str,
         volume: f64,
         pressure: f64,
         temperature: f64,
-        fluid: F
-    ) -> TransientVolume<F>{
-        let fluid_state = props::FluidState::<F>::new_from_ptv(
+        fluid: &str
+    ) -> TransientVolume{
+        let intensive_state = props::IntensiveState::new_from_pt(
             pressure,
             temperature,
-            volume,
-            fluid,
+            fluid
         );
 
-        let conservation = ConserveME::zeros();
+        let mass = intensive_state.density() * volume;
+        let inenergy = mass * intensive_state.sp_inenergy();
 
         return TransientVolume{
-            node_name,
-            fluid_state,
-            conservation
+            node_name: node_name.to_string(),
+            intensive_state,
+            conservation: ConserveME::new_from_mu(mass, inenergy),
+            volume,
         }
     }
+
 }
 
-// ----------------------------------------------------------------------------
-// Volume
-// ----------------------------------------------------------------------------
-
-impl<F: props::Fluid> Volume for TransientVolume<F>{
-    fn get_conservation(&mut self) -> Option<&mut ConserveME> {
-        return Some(&mut self.conservation)
+impl Volume for TransientVolume{
+    fn get_conservation(&mut self) -> Option<Rc<ConserveME>> {
+        return Some(Rc::from(self.conservation))
     }
-    fn get_fluidstate(&mut self) -> &props::FluidState<F> {
-        return &mut self.fluid_state
+    fn get_intensive_state(&self) -> &props::IntensiveState{
+        return &self.intensive_state
     }
 }
 
@@ -54,14 +53,22 @@ impl<F: props::Fluid> Volume for TransientVolume<F>{
 // Save
 // ----------------------------------------------------------------------------
 
-impl<F: props::Fluid> sim::Save for TransientVolume<F>{
+impl sim::Save for TransientVolume{
     fn save_data(&self, prefix: &str, runtime: &mut sim::Runtime) where Self: Sized {
-        self.conservation.save_data(&self.node_name, runtime);
-        self.fluid_state.save_data(&self.node_name, runtime);
+        runtime.add_or_set(&format!(
+            "{prefix}.volume [m^3]"),
+            self.volume
+        );
+        self.intensive_state.save_data(prefix, runtime);
+        self.conservation.save_data(prefix, runtime);
     }
     fn save_data_verbose(&self, prefix: &str, runtime: &mut sim::Runtime) where Self: Sized {
-        self.conservation.save_data_verbose(&self.node_name, runtime);
-        self.fluid_state.save_data_verbose(&self.node_name, runtime);
+        runtime.add_or_set(&format!(
+            "{prefix}.volume [m^3]"),
+            self.volume
+        );
+        self.intensive_state.save_data_verbose(prefix, runtime);
+        self.conservation.save_data_verbose(prefix, runtime);
     }
 }
 
@@ -69,10 +76,19 @@ impl<F: props::Fluid> sim::Save for TransientVolume<F>{
 // Update
 // ----------------------------------------------------------------------------
 
-impl<F: props::Fluid> sim::Update for TransientVolume<F>{
-    fn update(&mut self) {
-        self.conservation.perform_conservation(&mut self.fluid_state);
+impl sim::Update for TransientVolume{
+    fn update(&mut self, runtime: &mut sim::Runtime) {
+        // Save data
+        self.save_data_verbose(&self.node_name, runtime);
+
+        // Integrate mass conversation
+        self.conservation.perform_conservation();
+        self.conservation.rk4(runtime.get_dx());
+
+        // Update fluid state based on this new conservation
+        let new_density = self.conservation.mass / self.volume;
+        let new_sp_inenergy = self.conservation.inenergy / self.conservation.mass;
+        self.intensive_state.update_from_du(new_density, new_sp_inenergy);
+
     }
 }
-
-

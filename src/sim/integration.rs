@@ -1,8 +1,6 @@
-use std::ops::{Mul, Div, Add};
-
+use std::ops::{Add,Mul,Div};
 
 pub trait Integrate{
-
     fn get_derivative(&mut self)-> Self;
 
     fn rk4(&mut self, dt: f64)

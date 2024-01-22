@@ -1,24 +1,32 @@
 use std::f64::INFINITY;
+use std::rc::Rc;
 
 use crate::props;
 use crate::sim;
+use crate::sim::Save;
 
 use super::Volume;
 
+#[derive(Clone)]
 pub struct InfiniteVolume{
     node_name: String,
-    fluid_state: props::FluidState,
+    intensive_state: props::IntensiveState
 
 }
 
 impl InfiniteVolume{
-    fn new(node_name: &str, pressure: f64, temperature: f64, fluid_lookup: F) -> Self{
+    pub fn new(node_name: &str, pressure: f64, temperature: f64, fluid: &str) -> Self{
         return InfiniteVolume{
             node_name: node_name.to_string(),
-            fluid_state: props::FluidState::new_from_ptv(
-                pressure,
-                temperature,
-                INFINITY,
+            intensive_state: props::IntensiveState::new_from_pt(pressure, temperature, fluid)
+        }
+    }
+    pub fn atm(node_name: &str, fluid: &str) -> Self{
+        return InfiniteVolume{
+            node_name: node_name.to_string(),
+            intensive_state: props::IntensiveState::new_from_pt(
+                props::STD_ATM_PA,
+                props::STD_ATM_DEGK,
                 fluid
             )
         }
@@ -29,10 +37,12 @@ impl InfiniteVolume{
 // Volume
 // ----------------------------------------------------------------------------
 
-impl<F: props::Fluid + Sized> Volume for InfiniteVolume<F>{
-    fn get_conservation(&mut self) -> Option<&mut super::ConserveME> {None}
-    fn get_fluidstate(&mut self) -> &props::FluidState<F> {
-        return &self.fluid_state
+impl Volume for InfiniteVolume{
+    fn get_conservation(&mut self) -> Option<Rc<super::ConserveME>> {
+        return None
+    }
+    fn get_intensive_state(&self) -> &props::IntensiveState{
+        return &self.intensive_state
     }
 }
 
@@ -40,12 +50,12 @@ impl<F: props::Fluid + Sized> Volume for InfiniteVolume<F>{
 // Save
 // ----------------------------------------------------------------------------
 
-impl<F: props::Fluid> sim::Save for InfiniteVolume<F>{
+impl sim::Save for InfiniteVolume{
     fn save_data(&self, prefix: &str, runtime: &mut sim::Runtime) where Self: Sized {
-        self.fluid_state.save_data(&self.node_name, runtime);
+        self.intensive_state.save_data(&self.node_name, runtime);
     }
     fn save_data_verbose(&self, prefix: &str, runtime: &mut sim::Runtime) where Self: Sized {
-        self.fluid_state.save_data_verbose(&self.node_name, runtime);
+        self.intensive_state.save_data_verbose(&self.node_name, runtime);
     }
 }
 
@@ -53,6 +63,8 @@ impl<F: props::Fluid> sim::Save for InfiniteVolume<F>{
 // Update
 // ----------------------------------------------------------------------------
 
-impl<F: props::Fluid> sim::Update for InfiniteVolume<F>{
-    fn update(&mut self) {}
+impl sim::Update for InfiniteVolume{
+    fn update(&mut self, runtime: &mut sim::Runtime) {
+        self.save_data_verbose(&self.node_name, runtime)
+    }
 }

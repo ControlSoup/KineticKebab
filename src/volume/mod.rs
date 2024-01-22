@@ -1,33 +1,58 @@
-use crate::sim;
-use crate::properties as props;
+use crate::{sim, props::IntensiveState};
 
+
+pub mod transeint_volume;
+pub use transeint_volume::TransientVolume;
+
+pub mod infinite_volume;
+pub use infinite_volume::InfiniteVolume;
+
+use std::rc::Rc;
 
 pub trait Volume{
-    fn get_conservation(&mut self) -> Option<&mut ConserveME>;
-    fn get_fluidstate(&mut self) -> props::FluidState;
+    fn get_conservation(&mut self) -> Option<Rc<ConserveME>>;
+    fn get_intensive_state(&self) -> &IntensiveState;
 }
 
+#[derive(
+    Clone,
+    Copy,
+    derive_more::Mul,
+    derive_more::Div,
+    derive_more::Add
+)]
 pub struct ConserveME{
     mdot_in: f64,
     mdot_out: f64,
     energy_in: f64,
     energy_out: f64,
     mdot: f64,
-    udot: f64
+    udot: f64,
+    mass: f64,
+    inenergy: f64
 }
 
 impl ConserveME{
 
-    /// Intializes the struct with all zeros
-    pub fn zeros() -> ConserveME{
+    fn new_from_mu(mass: f64, inenergy: f64) -> ConserveME{
         return ConserveME{
             mdot_in: 0.0,
             mdot_out: 0.0,
             energy_in: 0.0,
             energy_out: 0.0,
             mdot: 0.0,
-            udot: 0.0
+            udot: 0.0,
+            mass,
+            inenergy
         }
+    }
+
+    /// Set mass flux and energy flux to 0.0
+    fn clear(&mut self){
+        self.mdot_in = 0.0;
+        self.mdot_out = 0.0;
+        self.energy_in = 0.0;
+        self.energy_out = 0.0;
     }
 
     /// Adds the mdot input to the current mdot_in
@@ -50,14 +75,6 @@ impl ConserveME{
         self.energy_out += energy;
     }
 
-    /// Sets mass flux, and energy flux to zero
-    fn clear(&mut self){
-        self.mdot_in = 0.0;
-        self.mdot_out = 0.0;
-        self.energy_in = 0.0;
-        self.energy_out = 0.0;
-    }
-
     /// Calcualtes and updates rate of change in mass and specific enthalpy
     ///
     /// Continuity Equations:
@@ -67,19 +84,45 @@ impl ConserveME{
     /// $\dot{u} = \frac{\Sigma\dot{U_{in}} - \Sigma\dot{U_{out}}}{m}
     ///
     /// TODO: Add units
-    pub fn perform_conservation(&mut self, fluid_state: &mut props::FluidState){
+    pub fn perform_conservation(&mut self){
         self.mdot = self.mdot_in - self.mdot_out;
         self.udot = self.energy_in - self.energy_out;
-
-        fluid_state.update_from_mu(self.mdot, self.udot);
         self.clear()
     }
 
 }
 
+// ----------------------------------------------------------------------------
+// Integration
+// ----------------------------------------------------------------------------
+
+impl sim::Integrate for ConserveME{
+    fn get_derivative(&mut self)-> Self {
+        let mut d = self.clone();
+        d.mass = d.mdot;
+        d.inenergy = d.udot;
+        d.mdot = 0.0;
+        d.udot = 0.0;
+
+        return d
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Save
+// ----------------------------------------------------------------------------
+
 impl sim::Save for ConserveME{
 
     fn save_data(&self, prefix: &str, runtime: &mut sim::Runtime) where Self: Sized {
+        runtime.add_or_set(&format!(
+            "{prefix}.mass [kg]"),
+            self.mass
+        );
+        runtime.add_or_set(&format!(
+            "{prefix}.inenergy [J]"),
+            self.inenergy
+        );
         runtime.add_or_set(&format!(
             "{prefix}.mdot [kg/s]"),
             self.mdot
@@ -110,5 +153,92 @@ impl sim::Save for ConserveME{
             "{prefix}.energy_out [J]"),
             self.energy_out
         );
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Test
+// ----------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+
+    use crate::sim::Integrate;
+
+    use approx::assert_relative_eq;
+
+    use super::*;
+
+    #[test]
+    fn mass_test(){
+        let mut conservation = ConserveME::new_from_mu(10.0, 10.0);
+
+        let time = 1.0;
+        let dt = 1e-3;
+        let steps = (time / dt) as usize;
+
+        // Test Mass In
+        conservation.add_mdot_in(1.0);
+        conservation.perform_conservation();
+        for _ in 0..steps{
+            conservation.rk4(dt)
+        }
+
+        assert_relative_eq!(
+            conservation.mass,
+            11.0,
+            max_relative = 1e-6
+        );
+
+        // Test Mass Out
+        conservation.add_mdot_out(1.0);
+        conservation.perform_conservation();
+        for _ in 0..steps{
+            conservation.rk4(dt)
+        }
+
+        assert_relative_eq!(
+            conservation.mass,
+            10.0,
+            max_relative = 1e-6
+        );
+
+    }
+
+    #[test]
+    fn energy_test(){
+        let mut conservation = ConserveME::new_from_mu(10.0, 10.0);
+
+        let time = 1.0;
+        let dt = 1e-3;
+        let steps = (time / dt) as usize;
+
+        // Test Mass In
+        conservation.add_energy_in(1.0);
+        conservation.perform_conservation();
+        for _ in 0..steps{
+            conservation.rk4(dt)
+        }
+
+        assert_relative_eq!(
+            conservation.inenergy,
+            11.0,
+            max_relative = 1e-6
+        );
+
+        // Test Mass Out
+        conservation.add_energy_out(1.0);
+        conservation.perform_conservation();
+        for _ in 0..steps{
+            conservation.rk4(dt)
+        }
+
+        assert_relative_eq!(
+            conservation.inenergy,
+            10.0,
+            max_relative = 1e-6
+        );
+
+
     }
 }
