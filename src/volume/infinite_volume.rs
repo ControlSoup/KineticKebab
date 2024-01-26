@@ -1,5 +1,4 @@
 use std::f64::INFINITY;
-use std::rc::Rc;
 
 use crate::props;
 use crate::sim;
@@ -38,7 +37,7 @@ impl InfiniteVolume{
 // ----------------------------------------------------------------------------
 
 impl Volume for InfiniteVolume{
-    fn get_conservation(&mut self) -> Option<Rc<super::ConserveME>> {
+    fn get_conservation(&mut self) -> Option<Box<super::ConserveME>> {
         return None
     }
     fn get_intensive_state(&self) -> &props::IntensiveState{

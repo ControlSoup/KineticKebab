@@ -2,16 +2,21 @@ use crate::volume::Volume;
 
 pub mod orifice;
 pub use orifice::RealOrifice;
-use std::rc::Rc;
+use std::{rc::Rc,cell::RefCell};
 
 pub trait FlowRestriction<V: Volume>{
     fn calc_mdot(&mut self) -> f64;
-    fn get_connection_in(&mut self) -> Rc<V>;
-    fn get_connection_out(&mut self) -> Rc<V>;
+    fn get_connection_in(&mut self) -> Rc<RefCell<V>>;
+    fn get_connection_out(&mut self) -> Rc<RefCell<V>>;
+
+
     fn transfer_state(&mut self){
         let mdot = self.calc_mdot();
 
-        let mut connection_in = self.get_connection_in();
+        // In order to maintain mutable references to both this struct and
+        // future stucts, disect the Rc and refcell as mutable for editing.
+        let connection = self.get_connection_in();
+        let mut connection_in = connection.borrow_mut();
         let conservation  = connection_in.get_conservation();
         let intensive_state = connection_in.get_intensive_state();
 
@@ -24,7 +29,8 @@ pub trait FlowRestriction<V: Volume>{
             None =>{}
         }
 
-        let mut connection_out = self.get_connection_out();
+        let connection = self.get_connection_out();
+        let mut connection_out = connection.borrow_mut();
         let conservation  = connection_out.get_conservation();
         let intensive_state = connection_out.get_intensive_state();
 

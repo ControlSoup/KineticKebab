@@ -4,7 +4,7 @@ use crate::sim;
 use crate::props;
 use super::FlowRestriction;
 use roots;
-use std::rc::Rc;
+use std::{rc::Rc, cell::RefCell};
 
 pub struct RealOrifice<V: Volume>{
     node_name: String,
@@ -12,16 +12,16 @@ pub struct RealOrifice<V: Volume>{
     cda: f64,
     velocity: f64,
     is_choked: bool,
-    connection_in: Rc<V>,
-    connection_out: Rc<V>
+    connection_in: Rc<RefCell<V>>,
+    connection_out: Rc<RefCell<V>>
 }
 
 impl<V: Volume + Clone> RealOrifice<V>{
     pub fn new(
         node_name: &str,
         cda: f64,
-        connection_in: Rc<V>,
-        connection_out: Rc<V>
+        connection_in: Rc<RefCell<V>>,
+        connection_out: Rc<RefCell<V>>
     ) -> Self{
         return RealOrifice{
             node_name: node_name.to_string(),
@@ -37,8 +37,11 @@ impl<V: Volume + Clone> RealOrifice<V>{
 
 impl<V: Volume + Clone> FlowRestriction<V> for RealOrifice<V>{
     fn calc_mdot(&mut self) -> f64{
-        let state_in = self.connection_in.get_intensive_state();
-        let state_out = self.connection_out.get_intensive_state();
+        let state_in_ref = self.connection_in.borrow_mut();
+        let state_in = state_in_ref.get_intensive_state();
+        let state_out_ref = self.connection_out.borrow_mut();
+        let state_out = state_out_ref.get_intensive_state();
+
 
         // Don't solve for very low dp
         if state_in.pressure() - state_out.pressure() < 1e-5{
@@ -76,10 +79,10 @@ impl<V: Volume + Clone> FlowRestriction<V> for RealOrifice<V>{
         return self.mdot
     }
 
-    fn get_connection_in(&mut self) -> Rc<V> {
+    fn get_connection_in(&mut self) -> Rc<RefCell<V>> {
         return Rc::clone(&self.connection_in)
     }
-    fn get_connection_out(&mut self) -> Rc<V> {
+    fn get_connection_out(&mut self) -> Rc<RefCell<V>> {
        return Rc::clone(&self.connection_out)
     }
 

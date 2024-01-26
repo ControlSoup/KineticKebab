@@ -1,16 +1,13 @@
 use crate::{sim, props::IntensiveState};
 
-
 pub mod transeint_volume;
 pub use transeint_volume::TransientVolume;
 
 pub mod infinite_volume;
 pub use infinite_volume::InfiniteVolume;
 
-use std::rc::Rc;
-
 pub trait Volume{
-    fn get_conservation(&mut self) -> Option<Rc<ConserveME>>;
+    fn get_conservation(&mut self) -> Option<Box<ConserveME>>;
     fn get_intensive_state(&self) -> &IntensiveState;
 }
 

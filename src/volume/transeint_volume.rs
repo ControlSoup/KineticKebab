@@ -1,5 +1,4 @@
 use std::ops::Add;
-use std::rc::Rc;
 use crate::sim;
 use crate::props;
 use crate::sim::Integrate;
@@ -41,8 +40,8 @@ impl TransientVolume{
 }
 
 impl Volume for TransientVolume{
-    fn get_conservation(&mut self) -> Option<Rc<ConserveME>> {
-        return Some(Rc::from(self.conservation))
+    fn get_conservation(&mut self) -> Option<Box<ConserveME>> {
+        return Some(Box::new(self.conservation))
     }
     fn get_intensive_state(&self) -> &props::IntensiveState{
         return &self.intensive_state
