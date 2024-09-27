@@ -1,18 +1,20 @@
 const std = @import("std");
-pub const Motion1DOF = @import("Motion.zig").Motion1DOF;
+const sim = @import("../Sim/sim.zig");
+const motion = @import("Motion.zig");
 
 pub const Force = union(enum) {
-    Simple: Simple,
-    Spring: Spring,
+    const Self = @This();
+    Simple: *const Simple,
+    Spring: *const Spring,
 
-    pub fn get_force(self: Force) f64 {
-        switch (self) {
+    pub fn get_force(self: *Force) f64 {
+        switch (self.*) {
             .Simple => |f| return f.force,
             .Spring => |f| return f.spring_force(),
         }
     }
 
-    pub fn init_connection(self: *Force, connection: *Motion1DOF) void {
+    pub fn init_connection(self: *Force, connection: *motion.Motion1DOF) void {
         switch (self.*) {
             Force.Simple => |_| return,
             Force.Spring => |*f| {
@@ -27,10 +29,15 @@ pub const Force = union(enum) {
 };
 
 pub const Spring = struct {
+    const Self = @This();
     name: []const u8,
     spring_constant: f64,
     preload: f64,
-    position_ptr: ?*Motion1DOF = null,
+    position_ptr: ?*motion.Motion1DOF = null,
+
+    pub fn as_force(self: *Self) Force {
+        return Force{ .Spring = self };
+    }
 
     pub fn spring_force(self: Spring) f64 {
         if (self.position_ptr) |ptr| {
@@ -41,4 +48,12 @@ pub const Spring = struct {
     }
 };
 
-pub const Simple = struct { name: []const u8, force: f64 };
+pub const Simple = struct {
+    const Self = @This();
+    name: []const u8,
+    force: f64,
+
+    pub fn as_force(self: *Self) Force {
+        return Force{ .Simple = self };
+    }
+};
