@@ -2,14 +2,14 @@ const std = @import("std");
 const motion = @import("../physics/motion.zig");
 const forces = @import("../physics/forces.zig");
 const sim = @import("sim/sim.zig");
-const json_sim = @import("config/json_maker.zig").json_sim;
+const json_sim = @import("config/create_from_json.zig").json_sim;
 
 pub fn main() !void {
     // ========================================================================= 
     // Allocation
     // ========================================================================= 
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{.verbose_log = true}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer {
         if (gpa.deinit() == .leak) @panic("MEMORY LEAK");
@@ -31,6 +31,8 @@ pub fn main() !void {
     const sim_ptr = try json_sim(allocator, buffer);
     
     sim_ptr._print_info();
-    sim_ptr.step_duration(1.0);
+    try sim_ptr.step_duration(1.0);
     sim_ptr._print_info();
+
+    sim_ptr.deinit();
 }

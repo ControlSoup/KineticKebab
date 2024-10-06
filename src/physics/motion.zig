@@ -2,7 +2,7 @@ const std = @import("std");
 const forces = @import("forces.zig");
 const sim = @import("../sim/sim.zig");
 const solver = @import("../solvers/solvers.zig");
-const parse_field = @import("../config/json_maker.zig").parse_field;
+const parse_field = @import("../config/create_from_json.zig").parse_field;
 
 const MAX_STATE_LEN = solver.MAX_STATE_LEN;
 
