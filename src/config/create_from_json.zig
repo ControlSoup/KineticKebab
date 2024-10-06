@@ -8,11 +8,11 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     defer parsed.deinit();
 
     // Create a new sim
-    const sim_options: json.Value =_container_check(parsed, "SimOptions");
+    const sim_options: json.Value =_group_exists(parsed, "SimOptions");
     const new_sim_ptr: *sim.Sim = try sim.Sim.from_json(allocator, sim_options);
 
     // Add objects
-    const sim_objs: json.Value = _container_check(parsed, "SimObjects");
+    const sim_objs: json.Value = _group_exists(parsed, "SimObjects");
     for (sim_objs.object.keys()) |obj_name|{
 
         // Motion1DOF creation
@@ -27,8 +27,8 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     return new_sim_ptr;
 }
 
-pub fn _container_check(parsed: json.Parsed(json.Value), key: []const u8) json.Value{
-    return parsed.value.object.get(key) orelse std.debug.panic("ERROR| Json does not contain container for [{s}] please add it", .{key});
+pub fn _group_exists(parsed: json.Parsed(json.Value), key: []const u8) json.Value{
+    return parsed.value.object.get(key) orelse std.debug.panic("ERROR| Json does not contain [{s}] please add it", .{key});
 }
 
 pub fn parse_field(allocator: std.mem.Allocator, comptime T: type, obj_name: []const u8, key: []const u8, contents: std.json.Value) T{
