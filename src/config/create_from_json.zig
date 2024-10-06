@@ -14,7 +14,8 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     // Add objects
     const sim_objs: json.Value = _group_exists(parsed, "SimObjects");
     for (sim_objs.object.keys()) |obj_name|{
-        // Motion1DOF creation
+
+        // Init specific objects, as a sim object interface
         if (std.mem.eql(u8, obj_name, "Motion1DOF")){
             const new_obj_ptr = try sim.motion.Motion1DOF.from_json(allocator, sim_objs.object.get(obj_name) orelse unreachable);
             const new_sim_obj = new_obj_ptr.as_sim_object();
