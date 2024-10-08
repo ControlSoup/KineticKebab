@@ -2,7 +2,6 @@ const std = @import("std");
 const motion = @import("physics/motion.zig");
 const forces = @import("physics/forces.zig");
 const sim = @import("sim/sim.zig");
-const json_sim = @import("config/json_maker.zig").json_sim;
 
 pub fn main() !void {
     // ========================================================================= 

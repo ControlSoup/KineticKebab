@@ -73,7 +73,7 @@ pub const Sim = struct {
     dt: f64,
     time: f64 = 0,
     steps: usize = 0,
-    sim_objs: std.ArrayList(*SimObject),
+    sim_objs: std.ArrayList(SimObject),
     state_names: std.ArrayList([]const u8),
     state_vals: std.ArrayList(f64),
 
@@ -94,7 +94,7 @@ pub const Sim = struct {
 
     pub fn create(allocator: std.mem.Allocator, dt: f64) !*Self {
         const ptr = try allocator.create(Self);
-        ptr.* = init(allocator, dt);
+        ptr.* = try init(allocator, dt);
         return ptr;
     }
 
@@ -117,11 +117,6 @@ pub const Sim = struct {
         self.sim_objs.deinit();
         self.state_vals.deinit();
         self.state_names.deinit();
-    }
-
-    pub fn destroy(self: *Self) void{
-        self.deinit();
-        self.allocator.destroy(self);
     }
 
     pub fn add_obj(self: *Self, obj: SimObject) !void {
@@ -149,8 +144,12 @@ pub const Sim = struct {
 
     pub fn create_obj(self: *Self, obj: SimObject) !void {
         const ptr = try self.allocator.create(SimObject);
-        ptr.* = obj;
-        self.add_obj(ptr.*);
+
+        // Enforce copy
+        const new_obj = obj;
+
+        ptr.* = new_obj;
+        try self.add_obj(ptr.*);
     }
 
     pub fn step(self: *Self) void {

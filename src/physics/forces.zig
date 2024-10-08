@@ -15,7 +15,7 @@ pub const Force = union(enum) {
         }
     }
 
-    pub fn init_connection(self: *const Force, connection: *motion.Motion1DOF) void {
+    pub fn init_connection(self: *const Self, connection: *motion.Motion1DOF) void {
         switch (self.*) {
             Force.Simple => |_| return,
             inline else => |f| {
@@ -52,7 +52,7 @@ pub const Spring = struct {
     // Force Methods
     // =========================================================================
 
-    pub fn as_force(self: *Self) Force {
+    pub fn as_force(self: Self) Force {
         return Force{ .Spring = self };
     }
 

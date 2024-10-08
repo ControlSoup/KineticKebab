@@ -22,7 +22,7 @@ pub const Integration = union(enum) {
         };
     }
 
-    pub fn get_dstate(self: *const Integration, state: [MAX_STATE_LEN]f64) [MAX_STATE_LEN]f64 {
+    pub fn get_dstate(self: *const Self, state: [MAX_STATE_LEN]f64) [MAX_STATE_LEN]f64 {
         return switch (self.*) {
             inline else => |m| m.get_dstate(state),
         };
@@ -34,7 +34,7 @@ pub const Integration = union(enum) {
         };
     }
 
-    pub fn rk4(self: *const Integration, dt: f64) void {
+    pub fn rk4(self: *const Self, dt: f64) void {
 
         const intial_state = self.get_state();
 
@@ -66,7 +66,7 @@ pub const Integration = union(enum) {
         self.set_state(result); 
     }
 
-    pub fn euler(self: *const Integration, dt: f64) void {
+    pub fn euler(self: *const Self, dt: f64) void {
         var state = self.get_state();
 
         const dstate = self.get_dstate(state);
