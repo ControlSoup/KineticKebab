@@ -7,13 +7,9 @@ pub fn main() !void {
     // ========================================================================= 
     // Allocation
     // ========================================================================= 
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer {
-        const deinit_status = gpa.deinit();
-        if (deinit_status == .leak) std.testing.expect(false) catch @panic("TEST FAIL");
-    }
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = arena.allocator();
+    defer arena.deinit();
 
     // ========================================================================= 
     // Setup
@@ -31,7 +27,6 @@ pub fn main() !void {
     // Simulaion
     // ========================================================================= 
     var main_sim = sim.Sim.init(allocator, 0.001);
-    defer main_sim.deinit();
     try main_sim.add_obj(motion_obj.as_sim_object());
     try main_sim.add_obj(simple.as_sim_object());
     // try main_sim.add_obj(spring.as_sim_object());

@@ -31,6 +31,7 @@ pub const Force = union(enum) {
 
 pub const Spring = struct {
     const Self = @This();
+    pub const header: [3][]const u8 = [3][]const u8{ "spring_constant [N/m]", "preload [m]", "force [N]" };
 
     name: []const u8,
     spring_constant: f64,
@@ -73,29 +74,19 @@ pub const Spring = struct {
         return sim.SimObject{ .Spring = self };
     }
 
-    pub fn get_header(self: *Self) []const []const u8 {
-        _ = self;
-        const save = [_][]const u8{ "spring_constant [N/m]", "preload [m]", "force [N]" };
-        return save[0..];
-    }
-
     pub fn save_values(self: *Self, save_array: []f64) void {
-        if (save_array.len != self.save_len()) {
-            std.debug.panic("ERROR| Save slice length [{d}] != [{d}] for object [{s}]", .{ save_array.len, self.save_len(), self.name });
+        if (save_array.len != Self.header.len) {
+            std.debug.panic("ERROR| Save slice length [{d}] != [{d}] for object [{s}]", .{ save_array.len, Self.header.len, self.name });
         }
         save_array[0] = self.spring_constant;
         save_array[1] = self.preload;
         save_array[2] = self.force;
     }
-
-    pub fn save_len(self: *Self) usize{
-        _ = self;
-        return 3;
-    }
 };
 
 pub const Simple = struct {
     const Self = @This();
+    pub const header: [1][]const u8 = [1][]const u8{"force [N]"};
 
     name: []const u8,
     force: f64,
@@ -104,7 +95,7 @@ pub const Simple = struct {
         return Simple{.name = name, .force = force};
     }
 
-    pub fn create(allocator: std.mem.Allocator, name:[] const u8, force: f64) !*Self{
+    pub fn create(allocator: *std.mem.Allocator, name:[] const u8, force: f64) !*Self{
         const ptr = allocator.create(Simple);
         ptr.* = init(name, force);
         return ptr;
@@ -122,25 +113,15 @@ pub const Simple = struct {
     // Sim Object Methods
     // =========================================================================
 
-    pub fn get_header(self: *Self) []const []const u8 {
-        _ = self;
-        const save = [_][]const u8{"force [N]"};
-        return save[0..];
-    }
-
     pub fn as_sim_object(self: *Self) sim.SimObject {
         return sim.SimObject{ .Simple = self };
     }
 
     pub fn save_values(self: *Self, save_array: []f64) void {
-        if (save_array.len != self.save_len()) {
-            std.debug.panic("ERROR| Save slice length [{d}] != [{d}] for object [{s}]", .{ save_array.len, self.save_len(), self.name });
+        if (save_array.len != Self.header.len) {
+            std.debug.panic("ERROR| Save slice length [{d}] != [{d}] for object [{s}]", .{ save_array.len, Self.header.len, self.name });
         }
         save_array[0] = self.force;
     }
 
-    pub fn save_len(self: *Self) usize{
-        _ = self;
-        return 1;
-    }
 };

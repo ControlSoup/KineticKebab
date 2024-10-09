@@ -19,7 +19,9 @@ pub const SimObject = union(enum) {
 
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
-            inline else => |impl| return impl.get_header(),
+            .Simple => return forces.Simple.header[0..],
+            .Spring => return forces.Spring.header[0..],
+            .Integration => |impl| return impl.get_header(),
         };
     }
 
@@ -31,7 +33,9 @@ pub const SimObject = union(enum) {
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
-            inline else => |impl| return impl.save_len(),
+            .Simple => return forces.Simple.header.len,
+            .Spring => return forces.Spring.header.len,
+            .Integration => |impl| return impl.save_len()
         };
     }
 
@@ -52,15 +56,6 @@ pub const SimObject = union(enum) {
             .Integration => |impl| {
                 impl.rk4(dt);
             },
-        }
-    }
-
-    pub fn deinit(self: *const Self) void {
-        switch (self.*) {
-            // Non allocated objects don't require deinit
-            .Simple => return,
-            .Spring => return,
-            inline else => |impl| impl.deinit(),
         }
     }
 
@@ -94,7 +89,7 @@ pub const Sim = struct {
 
     pub fn create(allocator: std.mem.Allocator, dt: f64) !*Self {
         const ptr = try allocator.create(Self);
-        ptr.* = try init(allocator, dt);
+        ptr.* = init(allocator, dt);
         return ptr;
     }
 
@@ -104,19 +99,6 @@ pub const Sim = struct {
             parse_field(allocator, f64, "SimOptions", "dt", contents)
         );
         return new;
-    }
-
-    pub fn deinit(self: *Self) void {
-        for (self.state_names.items) |name| {
-            self.allocator.free(name);
-        }
-        for (self.sim_objs.items) |*obj| {
-            obj.deinit();
-        }
-
-        self.sim_objs.deinit();
-        self.state_vals.deinit();
-        self.state_names.deinit();
     }
 
     pub fn add_obj(self: *Self, obj: SimObject) !void {
@@ -147,7 +129,6 @@ pub const Sim = struct {
 
         // Enforce copy
         const new_obj = obj;
-
         ptr.* = new_obj;
         try self.add_obj(ptr.*);
     }
@@ -201,7 +182,6 @@ pub const Sim = struct {
     pub fn _name_exists(self: *Self, name1: []const u8) bool{
         for (self.state_names.items) |name2|{
             if (std.mem.eql(u8, name1, name2)) {
-                std.log.info("{s},{s}", .{name1, name2});
                 return true;
             }
                 

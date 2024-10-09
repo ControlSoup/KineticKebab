@@ -5,7 +5,6 @@ const motion = @import("../physics/motion.zig");
 pub const MAX_STATE_LEN = 3;
 
 pub const Integration = union(enum) {
-    // TODO: Use Vectors / simd ops???
     const Self = @This();
 
     Motion1DOF: *motion.Motion1DOF,
@@ -92,7 +91,7 @@ pub const Integration = union(enum) {
 
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
-            inline else => |impl| return impl.get_header(),
+            .Motion1DOF => return motion.Motion1DOF.header[0..]
         };
     }
 
@@ -104,19 +103,13 @@ pub const Integration = union(enum) {
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
-            inline else => |impl| return impl.save_len(),
+            .Motion1DOF => return motion.Motion1DOF.header.len,
         };
     }
 
     pub fn update(self: *const Self) void {
         switch (self.*) {
             inline else => |impl| impl.update(),
-        }
-    }
-
-    pub fn deinit(self: *const Self) void {
-        switch (self.*) {
-            inline else => |impl| impl.*.deinit(),
         }
     }
 };

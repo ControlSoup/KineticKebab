@@ -2,6 +2,8 @@ const std = @import("std");
 const json = std.json;
 const sim = @import("../sim/sim.zig");
 
+const MAX_NAME_LEN = 40;
+
 pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim{
 
     const parsed: json.Parsed(json.Value) = try json.parseFromSlice(json.Value, allocator, json_string,.{});
@@ -18,8 +20,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         // Init specific objects, as a sim object interface
         if (std.mem.eql(u8, obj_name, "Motion1DOF")){
             const new_obj_ptr = try sim.motion.Motion1DOF.from_json(allocator, sim_objs.object.get(obj_name) orelse unreachable);
-            const new_sim_obj = new_obj_ptr.as_sim_object();
-            try new_sim_ptr.create_obj(new_sim_obj);
+            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
         }
 
     }
@@ -42,7 +43,21 @@ pub fn parse_field(allocator: std.mem.Allocator, comptime T: type, obj_name: []c
         std.debug.panic("ERROR| Could not parse field [{s}.{s}] check field matches type [{any}] \n {!}", .{obj_name, key, T, err});
     };
     defer parsed.deinit();
-    const value = parsed.value;
 
+    const value = parsed.value;
     return value;
+}
+
+pub fn parse_string_field(allocator: std.mem.Allocator, obj_name: []const u8, key: []const u8, contents: std.json.Value) []const u8{
+    const parsed = std.json.parseFromValue(
+        []const u8, 
+        allocator, 
+        contents.object.get(key) orelse std.debug.panic("ERROR| Attempting to init [{s}] but [{s}] field is missing", .{obj_name, key}
+        ), .{}
+    ) catch |err|{
+        std.debug.panic("ERROR| Could not parse field [{s}.{s}] check field matches type [[]const u8] \n {!}", .{obj_name, key, err});
+    };
+    defer parsed.deinit();
+
+    return allocator.dupe(u8, parsed.value) catch |err| std.debug.panic("ERROR| {!}", .{err});
 }

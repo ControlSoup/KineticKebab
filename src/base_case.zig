@@ -8,12 +8,9 @@ pub fn main() !void {
     // ========================================================================= 
     // Allocation
     // ========================================================================= 
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer {
-        if (gpa.deinit() == .leak) @panic("MEMORY LEAK");
-    }
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = arena.allocator();
+    defer arena.deinit();
 
     // ========================================================================= 
     // File Reading
@@ -34,5 +31,4 @@ pub fn main() !void {
     try sim_ptr.step_duration(1.0);
     sim_ptr._print_info();
 
-    sim_ptr.deinit();
 }

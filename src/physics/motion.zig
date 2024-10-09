@@ -3,11 +3,13 @@ const forces = @import("forces.zig");
 const sim = @import("../sim/sim.zig");
 const solver = @import("../solvers/solvers.zig");
 const parse_field = @import("../config/create_from_json.zig").parse_field;
+const parse_string_field = @import("../config/create_from_json.zig").parse_string_field;
 
 const MAX_STATE_LEN = solver.MAX_STATE_LEN;
 
 pub const Motion1DOF = struct {
     const Self = @This();
+    pub const header: [5][]const u8 = [5][]const u8{ "pos [m]", "vel [m/s]", "accel [m/s^2]", "net_force [N]", "mass [kg]" };
 
     name: []const u8,
     max_pos: f64,
@@ -27,6 +29,14 @@ pub const Motion1DOF = struct {
         pos: f64,
         mass: f64
     ) Self{
+
+        if (max_pos < min_pos) {
+            std.debug.panic("ERROR| Object [{s}] max position [{d:0.4}] is less then min position [{d:0.4}]", .{name, max_pos, min_pos});
+        }
+        if (min_pos == max_pos) {
+            std.debug.panic("ERROR| Object [{s}] max position [{d:0.4}] is equal to the min position [{d:0.4}]", .{name, max_pos, min_pos});
+        }
+
         return Self{
             .name = name, 
             .max_pos = max_pos, 
@@ -57,7 +67,7 @@ pub const Motion1DOF = struct {
 
         const new = try create(
             allocator, 
-            parse_field(allocator, []const u8, "Motion1DOF", "name", contents),
+            parse_string_field(allocator, "Motion1DOF", "name", contents),
             parse_field(allocator, f64, "Motion1DOF", "max_pos", contents),
             parse_field(allocator, f64, "Motion1DOF", "min_pos", contents),
             parse_field(allocator, f64, "Motion1DOF", "pos", contents),
@@ -80,10 +90,12 @@ pub const Motion1DOF = struct {
         self.connections.deinit();
     }
 
+    /// Creates a sim object interface, that holds a pointer to this object as integratable
     pub fn as_sim_object(self: *Self) sim.SimObject {
         return sim.SimObject{ .Integration = solver.Integration{ .Motion1DOF = self } };
     }
 
+    /// Computes the net force and resulting acceleration based on mass
     pub fn update(self: *Self) void {
 
         // Update net force
@@ -95,23 +107,17 @@ pub const Motion1DOF = struct {
         // Get accel from force and mass
         self.accel = self.net_force / self.mass;
 
-        if (self.pos > self.max_pos){
+        if (self.pos >= self.max_pos){
             self.pos = self.max_pos;
         }
-        if (self.pos < self.min_pos){
+        if (self.pos <= self.min_pos){
             self.pos = self.min_pos;
         }
     }
 
-    pub fn get_header(self: *Self) []const []const u8 {
-        _ = self;
-        const save = [_][]const u8{ "pos [m]", "vel [m/s]", "accel [m/s^2]", "net_force [N]", "mass [kg]" };
-        return save[0..];
-    }
-
     pub fn save_values(self: *Self, save_array: []f64) void {
-        if (save_array.len != self.save_len()) {
-            std.debug.panic("ERROR| Save slice length [{d}] != [{d}] for object [{s}]", .{ save_array.len, self.save_len(), self.name });
+        if (save_array.len != Self.header.len) {
+            std.debug.panic("ERROR| Save slice length [{d}] != [{d}] for object [{s}]", .{ save_array.len, Self.header.len, self.name });
         }
 
         save_array[0] = self.pos;
@@ -119,11 +125,6 @@ pub const Motion1DOF = struct {
         save_array[2] = self.accel;
         save_array[3] = self.net_force;
         save_array[4] = self.mass;
-    }
-
-    pub fn save_len(self: *Self) usize{
-        _ = self;
-        return 5;
     }
 
     // =========================================================================
