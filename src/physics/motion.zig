@@ -2,8 +2,7 @@ const std = @import("std");
 const forces = @import("forces.zig");
 const sim = @import("../sim/sim.zig");
 const solver = @import("../solvers/solvers.zig");
-const parse_field = @import("../config/create_from_json.zig").parse_field;
-const parse_string_field = @import("../config/create_from_json.zig").parse_string_field;
+const parse = @import("../config/create_from_json.zig");
 
 const MAX_STATE_LEN = solver.MAX_STATE_LEN;
 
@@ -34,7 +33,7 @@ pub const Motion1DOF = struct {
             std.debug.panic("ERROR| Object [{s}] max position [{d:0.4}] is less then min position [{d:0.4}]", .{name, max_pos, min_pos});
         }
         if (min_pos == max_pos) {
-            std.debug.panic("ERROR| Object [{s}] max position [{d:0.4}] is equal to the min position [{d:0.4}]", .{name, max_pos, min_pos});
+            std.debug.panic("ERROR| Object [{s}]  position [{d:0.4}] is equal to the min position [{d:0.4}]", .{name, max_pos, min_pos});
         }
 
         return Self{
@@ -67,11 +66,11 @@ pub const Motion1DOF = struct {
 
         const new = try create(
             allocator, 
-            parse_string_field(allocator, "Motion1DOF", "name", contents),
-            parse_field(allocator, f64, "Motion1DOF", "max_pos", contents),
-            parse_field(allocator, f64, "Motion1DOF", "min_pos", contents),
-            parse_field(allocator, f64, "Motion1DOF", "pos", contents),
-            parse_field(allocator, f64, "Motion1DOF", "mass", contents),
+            parse.string_field(allocator, "Motion1DOF", "name", contents),
+            parse.field(allocator, f64, "Motion1DOF", "max_pos", contents),
+            parse.field(allocator, f64, "Motion1DOF", "min_pos", contents),
+            parse.field(allocator, f64, "Motion1DOF", "pos", contents),
+            parse.field(allocator, f64, "Motion1DOF", "mass", contents),
         );
         return new;
     }

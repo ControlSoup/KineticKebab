@@ -1,6 +1,7 @@
 const std = @import("std");
 const sim = @import("../sim/sim.zig");
 const motion = @import("motion.zig");
+const parse = @import("../config/create_from_json.zig");
 const MAX_STATE_LEN = @import("../solvers/solvers.zig").MAX_STATE_LEN;
 
 pub const Force = union(enum) {
@@ -40,7 +41,7 @@ pub const Spring = struct {
     position_ptr: ?*motion.Motion1DOF = null,
 
     pub fn init(name: []const u8, preload: f64, spring_constant: f64) Self {
-        return Spring{ .name = name, .preload = preload, .spring_constat = spring_constant };
+        return Spring{ .name = name, .preload = preload, .spring_constant = spring_constant };
     }
 
     pub fn create(allocator: std.mem.Allocator, name: []const u8, preload: f64, spring_constant: f64) !*Spring {
@@ -49,11 +50,21 @@ pub const Spring = struct {
         return ptr;
     }
 
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Spring {
+        const new = create(
+            allocator,
+            parse.string_field(allocator, "SpringForce", "name", contents),
+            parse.field(allocator, f64, "SpringForce", "preload", contents),
+            parse.field(allocator, f64, "SpringForce", "spring_constant", contents),
+        );
+        return new;
+    }
+
     // =========================================================================
     // Force Methods
     // =========================================================================
 
-    pub fn as_force(self: Self) Force {
+    pub fn as_force(self: *Self) Force {
         return Force{ .Spring = self };
     }
 
@@ -95,10 +106,19 @@ pub const Simple = struct {
         return Simple{.name = name, .force = force};
     }
 
-    pub fn create(allocator: *std.mem.Allocator, name:[] const u8, force: f64) !*Self{
-        const ptr = allocator.create(Simple);
+    pub fn create(allocator: std.mem.Allocator, name:[] const u8, force: f64) !*Self{
+        const ptr = try allocator.create(Simple);
         ptr.* = init(name, force);
         return ptr;
+    }
+
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
+        const new = try create(
+            allocator,
+            parse.string_field(allocator, "SimpleForce", "name", contents),
+            parse.field(allocator, f64, "SimpleForce", "force", contents)
+        );
+        return new;
     }
 
     // =========================================================================

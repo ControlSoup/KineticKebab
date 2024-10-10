@@ -2,7 +2,7 @@ const std = @import("std");
 pub const motion = @import("../physics/motion.zig");
 pub const forces = @import("../physics/forces.zig");
 pub const solvers = @import("../solvers/solvers.zig");
-const parse_field = @import("../config/create_from_json.zig").parse_field;
+const parse = @import("../config/create_from_json.zig");
 
 pub const SimObject = union(enum) {
     const Self = @This();
@@ -96,7 +96,7 @@ pub const Sim = struct {
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
         const new = try create(
             allocator,
-            parse_field(allocator, f64, "SimOptions", "dt", contents)
+            parse.field(allocator, f64, "SimOptions", "dt", contents)
         );
         return new;
     }
@@ -114,8 +114,6 @@ pub const Sim = struct {
 
             try self.state_names.append(name);
             try self.state_vals.append(-404.0);
-
-
         }
 
         obj.save_values(
@@ -163,6 +161,13 @@ pub const Sim = struct {
             self.step();
         }
 
+    }
+
+    pub fn _get_sim_object_by_name(self: *Self, name: []const u8) SimObject{
+        for (self.sim_objs.items) |obj|{
+            if (std.mem.eql(u8, obj.name(), name)) return obj;
+        }
+        std.debug.panic("ERROR| Could not find object named [{s}]", .{name});
     }
 
 
