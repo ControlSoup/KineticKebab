@@ -9,25 +9,57 @@ pub const Force = union(enum) {
     Simple: *Simple,
     Spring: *Spring,
 
-    pub fn get_force(self: *const Force) f64 {
+    pub fn get_force(self: *const Force) !f64 {
         switch (self.*) {
             .Simple => |f| return f.force,
             inline else => |f| return f.get_force(),
         }
     }
 
-    pub fn init_connection(self: *const Self, connection: *motion.Motion1DOF) void {
+    pub fn init_connection(self: *const Self, connection: *motion.Motion1DOF) !void {
         switch (self.*) {
             Force.Simple => |_| return,
             inline else => |f| {
                 if (f.position_ptr) |_| {
-                    std.debug.panic("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
+                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
+                    return sim.errors.AlreadyConnected;
                 } else {
                     f.*.position_ptr = connection;
                 }
             },
         }
     }
+
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
+
+    pub fn name(self: *const Self) []const u8{
+        return switch (self.*){
+            inline else => |impl| impl.name,
+        };
+    }
+
+    pub fn get_header(self: *const Self) []const []const u8{
+        return switch (self.*){
+            .Simple => return Simple.header[0..],
+            .Spring => return Spring.header[0..],
+        };
+    }
+
+    pub fn save_values(self: *const Self, save_array: []f64) void {
+        switch (self.*){
+            inline else => |impl| impl.save_values(save_array),
+        }
+    }
+
+    pub fn save_len(self: *const Self) usize{
+        return switch (self.*) {
+            .Simple => return Simple.header.len,
+            .Spring => return Spring.header.len,
+        };
+    }
+
 };
 
 pub const Spring = struct {
@@ -53,9 +85,9 @@ pub const Spring = struct {
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Spring {
         const new = create(
             allocator,
-            parse.string_field(allocator, "SpringForce", "name", contents),
-            parse.field(allocator, f64, "SpringForce", "preload", contents),
-            parse.field(allocator, f64, "SpringForce", "spring_constant", contents),
+            try parse.string_field(allocator, "SpringForce", "name", contents),
+            try parse.field(allocator, f64, "SpringForce", "preload", contents),
+            try parse.field(allocator, f64, "SpringForce", "spring_constant", contents),
         );
         return new;
     }
@@ -64,17 +96,20 @@ pub const Spring = struct {
     // Force Methods
     // =========================================================================
 
-    pub fn as_force(self: *Self) Force {
-        return Force{ .Spring = self };
-    }
-
-    pub fn get_force(self: *Spring) f64 {
+    pub fn get_force(self: *Spring) !f64 {
         if (self.position_ptr) |ptr| {
             self.force = -self.spring_constant * (ptr.*.pos + self.preload);
             return self.force;
         } else {
-            std.debug.panic("ERROR| Object[{s}] is missing a connection", .{self.name});
+            std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
+            return sim.errors.AlreadyConnected; 
         }
+    }
+
+    pub fn save_values(self: *Self, save_array: []f64) void {
+        save_array[0] = self.spring_constant;
+        save_array[1] = self.preload;
+        save_array[2] = self.force;
     }
 
     // =========================================================================
@@ -82,17 +117,9 @@ pub const Spring = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Spring = self };
+        return sim.SimObject{ .Force = Force{.Spring = self }};
     }
 
-    pub fn save_values(self: *Self, save_array: []f64) void {
-        if (save_array.len != Self.header.len) {
-            std.debug.panic("ERROR| Save slice length [{d}] != [{d}] for object [{s}]", .{ save_array.len, Self.header.len, self.name });
-        }
-        save_array[0] = self.spring_constant;
-        save_array[1] = self.preload;
-        save_array[2] = self.force;
-    }
 };
 
 pub const Simple = struct {
@@ -115,9 +142,10 @@ pub const Simple = struct {
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
         const new = try create(
             allocator,
-            parse.string_field(allocator, "SimpleForce", "name", contents),
-            parse.field(allocator, f64, "SimpleForce", "force", contents)
+            try parse.string_field(allocator, "SimpleForce", "name", contents),
+            try parse.field(allocator, f64, "SimpleForce", "force", contents)
         );
+        std.log.info("{s}", .{new.name});
         return new;
     }
 
@@ -125,8 +153,8 @@ pub const Simple = struct {
     // Force Methods
     // =========================================================================
 
-    pub fn as_force(self: *Self) Force {
-        return Force{ .Simple = self };
+    pub fn save_values(self: *Self, save_array: []f64) void {
+        save_array[0] = self.force;
     }
 
     // =========================================================================
@@ -134,14 +162,8 @@ pub const Simple = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Simple = self };
+        return sim.SimObject{ .Force = Force{.Simple = self }};
     }
 
-    pub fn save_values(self: *Self, save_array: []f64) void {
-        if (save_array.len != Self.header.len) {
-            std.debug.panic("ERROR| Save slice length [{d}] != [{d}] for object [{s}]", .{ save_array.len, Self.header.len, self.name });
-        }
-        save_array[0] = self.force;
-    }
 
 };

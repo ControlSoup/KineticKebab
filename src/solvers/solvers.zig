@@ -33,7 +33,7 @@ pub const Integration = union(enum) {
         };
     }
 
-    pub fn rk4(self: *const Self, dt: f64) void {
+    pub fn rk4(self: *const Self, dt: f64) !void {
 
         const intial_state = self.get_state();
 
@@ -65,24 +65,20 @@ pub const Integration = union(enum) {
         self.set_state(result); 
     }
 
-    pub fn euler(self: *const Self, dt: f64) void {
-        var state = self.get_state();
+    pub fn euler(self: *const Self, dt: f64) !void {
+        var intial_state = self.get_state();
 
-        const dstate = self.get_dstate(state);
+        try std.testing.expect(intial_state.len < MAX_STATE_LEN);
 
-        if (state.len > MAX_STATE_LEN) {
-            std.debug.panic("ERROR| Object [{s}] has state length [{d}] > max state length [{d}]", .{ self.name(), state.len, MAX_STATE_LEN });
+        const dstate = self.get_dstate(intial_state);
+
+        try std.testing.expect(dstate.len == intial_state.len);
+
+        for (intial_state, 0..) |val, i| {
+            intial_state[i] = val + (dstate[i] * dt);
         }
 
-        if (dstate.len != state.len) {
-            std.debug.panic("ERROR| Object [{s}] state length [{d}] does not match dstate length [{d}]", .{ self.name(), state.len, dstate.len });
-        }
-
-        for (state, 0..) |val, i| {
-            state[i] = val + (dstate[i] * dt);
-        }
-
-        self.set_state(state);
+        self.set_state(intial_state);
     }
 
     // =========================================================================
@@ -107,9 +103,9 @@ pub const Integration = union(enum) {
         };
     }
 
-    pub fn update(self: *const Self) void {
+    pub fn update(self: *const Self) !void {
         switch (self.*) {
-            inline else => |impl| impl.update(),
+            inline else => |impl| try impl.update(),
         }
     }
 };

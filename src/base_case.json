@@ -1,9 +1,10 @@
 {
     "SimOptions":{
-        "dt": 1.0
+        "dt": 1e-3 
     },
-    "SimObjects":[{
-        "Motion1DOF":{
+    "SimObjects":[
+        {
+            "object": "physics.motion.Motion1DOF",
             "name": "MotionTest",
             "max_pos": 1.0,
             "min_pos": -1.0,
@@ -11,14 +12,16 @@
             "mass": 1.0,
             "connections": ["TestForce", "TestSpring"]
         },
-        "SpringForce":{
+        {
+            "object": "physics.forces.Spring",
             "name": "TestSpring",
-            "preload": 1.0,
+            "preload": "test",
             "spring_constant": 1.0
         },
-        "SimpleForce":{
+        {
+            "object": "physics.forces.Simple",
             "name": "TestForce",
             "force": 1.0
         }
-    }]
+    ]
 }

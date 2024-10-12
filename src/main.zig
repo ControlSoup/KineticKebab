@@ -1,42 +1,44 @@
 const std = @import("std");
-const motion = @import("physics/motion.zig");
-const forces = @import("physics/forces.zig");
 const sim = @import("sim/sim.zig");
+const builtin = @import("builtin");
+const json_sim = @import("config/create_from_json.zig").json_sim;
+
+const DELIMITER: u8 = 0;
 
 pub fn main() !void {
-    // ========================================================================= 
-    // Allocation
-    // ========================================================================= 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    const allocator = arena.allocator();
-    defer arena.deinit();
+    // // ========================================================================= 
+    // // Allocation
+    // // ========================================================================= 
+    // var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    // const allocator = arena.allocator();
+    // defer arena.deinit();
 
-    // ========================================================================= 
-    // Setup
-    // ========================================================================= 
 
-    // Simulation Objects
-    var simple = forces.Simple{ .name = "Simple", .force = 1 };
-    // var spring = forces.Spring{ .name = "Spring", .spring_constant = 1.0, .preload = 5.0 };
+    // // ========================================================================= 
+    // // Stdin / Stdout
+    // // ========================================================================= 
+    // const stdin = std.io.getStdIn().reader();
+    // // const stdout = std.io.getStdIn().writer();
+    // var input = std.ArrayList(u8).init(allocator);
+    // defer input.deinit();
+    
+    // stdin.streamUntilDelimiter(input.writer(), DELIMITER, null) catch |err| {
+    //     if (err != error.EndOfStream){
+    //         return err;
+    //     }
+    // };
 
-    var motion_obj = motion.Motion1DOF.init(allocator, "MotionBasic", 100.0, 0.0, 0.0, 1.0);
-    try motion_obj.add_connection(simple.as_force());
-    // try motion_obj.add_connection(spring.as_force());
+    // // ========================================================================= 
+    // // Sim
+    // // ========================================================================= 
+    // const json_sim_result = try json_sim(allocator, input.items);
 
-    // ========================================================================= 
-    // Simulaion
-    // ========================================================================= 
-    var main_sim = sim.Sim.init(allocator, 0.001);
-    try main_sim.add_obj(motion_obj.as_sim_object());
-    try main_sim.add_obj(simple.as_sim_object());
-    // try main_sim.add_obj(spring.as_sim_object());
-
-    // ========================================================================= 
-    // Runtime
-    // ========================================================================= 
-    main_sim._print_info();
-    try main_sim.step_duration(200.0);
-    main_sim._print_info();
-
+    // json_sim_result._print_info();
+    // try json_sim_result.step_duration(1.0);
+    // json_sim_result._print_info();
+    var fluid = sim.fluids.state.FluidState.init(sim.fluids.state.NitrogenIdealGas, sim.fluids.state.IdealGas.p0, sim.fluids.state.IdealGas.t0);
+    fluid._print();
+    fluid.update_from_pt(200000.0,sim.fluids.state.IdealGas.t0);
+    fluid._print();
 
 }
