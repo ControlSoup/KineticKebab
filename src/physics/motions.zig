@@ -1,6 +1,5 @@
 const std = @import("std");
-const sim = @import("../sim/sim.zig");
-const parse = @import("../config/create_from_json.zig");
+const sim = @import("../sim.zig");
 
 const MAX_STATE_LEN = sim.solvers.MAX_STATE_LEN;
 
@@ -64,21 +63,19 @@ pub const Motion1DOF = struct {
         allocator: std.mem.Allocator,
         contents: std.json.Value
     ) !*Motion1DOF{
-
-        const new = try create(
+        return try create(
             allocator, 
-            try parse.string_field(allocator, "Motion1DOF", "name", contents),
-            try parse.field(allocator, f64, "Motion1DOF", "max_pos", contents),
-            try parse.field(allocator, f64, "Motion1DOF", "min_pos", contents),
-            try parse.field(allocator, f64, "Motion1DOF", "pos", contents),
-            try parse.field(allocator, f64, "Motion1DOF", "mass", contents),
+            try sim.parse.string_field(allocator, Self, "name", contents),
+            try sim.parse.field(allocator, f64, Self, "max_pos", contents),
+            try sim.parse.field(allocator, f64, Self, "min_pos", contents),
+            try sim.parse.field(allocator, f64, Self, "pos", contents),
+            try sim.parse.field(allocator, f64, Self, "mass", contents),
         );
-        return new;
     }
 
     pub fn add_connection(self: *Self, sim_obj: sim.SimObject) !void {
         try self.connections.append(sim_obj.Force);
-        try sim_obj.Force.init_connection(self);
+        try sim_obj.Force.add_connections(self);
         try self.update();
     }
 
@@ -128,9 +125,6 @@ pub const Motion1DOF = struct {
     // =========================================================================
 
     pub fn set_state(self: *Self, integrated_state: [MAX_STATE_LEN]f64) void {
-        if (integrated_state.len != 3) {
-            std.debug.panic("ERROR| Attempting to set mismatched state length to [{s}]", .{self.*.name});
-        }
         self.vel = integrated_state[1];
         self.pos = integrated_state[2];
     }

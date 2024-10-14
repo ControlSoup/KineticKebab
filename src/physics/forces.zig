@@ -1,7 +1,6 @@
 const std = @import("std");
-const sim = @import("../sim/sim.zig");
-const motion = @import("motion.zig");
-const parse = @import("../config/create_from_json.zig");
+const sim = @import("../sim.zig");
+const motions = @import("motions.zig");
 const MAX_STATE_LEN = @import("../solvers/solvers.zig").MAX_STATE_LEN;
 
 pub const Force = union(enum) {
@@ -16,7 +15,7 @@ pub const Force = union(enum) {
         }
     }
 
-    pub fn init_connection(self: *const Self, connection: *motion.Motion1DOF) !void {
+    pub fn add_connections(self: *const Self, connection: *motions.Motion1DOF) !void {
         switch (self.*) {
             Force.Simple => |_| return,
             inline else => |f| {
@@ -70,7 +69,7 @@ pub const Spring = struct {
     spring_constant: f64,
     preload: f64,
     force: f64 = 0,
-    position_ptr: ?*motion.Motion1DOF = null,
+    position_ptr: ?*motions.Motion1DOF = null,
 
     pub fn init(name: []const u8, preload: f64, spring_constant: f64) Self {
         return Spring{ .name = name, .preload = preload, .spring_constant = spring_constant };
@@ -83,13 +82,12 @@ pub const Spring = struct {
     }
 
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Spring {
-        const new = create(
+        return try create(
             allocator,
-            try parse.string_field(allocator, "SpringForce", "name", contents),
-            try parse.field(allocator, f64, "SpringForce", "preload", contents),
-            try parse.field(allocator, f64, "SpringForce", "spring_constant", contents),
+            try sim.parse.string_field(allocator, Self, "name", contents),
+            try sim.parse.field(allocator, f64, Self, "preload", contents),
+            try sim.parse.field(allocator, f64, Self, "spring_constant", contents),
         );
-        return new;
     }
 
     // =========================================================================
@@ -97,13 +95,14 @@ pub const Spring = struct {
     // =========================================================================
 
     pub fn get_force(self: *Spring) !f64 {
-        if (self.position_ptr) |ptr| {
-            self.force = -self.spring_constant * (ptr.*.pos + self.preload);
-            return self.force;
-        } else {
+
+        if (self.position_ptr == null){
             std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
             return sim.errors.AlreadyConnected; 
         }
+
+        self.force = -self.spring_constant * ((self.position_ptr orelse unreachable).*.pos + self.preload);
+        return self.force;
     }
 
     pub fn save_values(self: *Self, save_array: []f64) void {
@@ -133,20 +132,18 @@ pub const Simple = struct {
         return Simple{.name = name, .force = force};
     }
 
-    pub fn create(allocator: std.mem.Allocator, name:[] const u8, force: f64) !*Self{
+    pub fn create(allocator: std.mem.Allocator, name:[]const u8, force: f64) !*Self{
         const ptr = try allocator.create(Simple);
         ptr.* = init(name, force);
         return ptr;
     }
 
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
-        const new = try create(
+        return try create(
             allocator,
-            try parse.string_field(allocator, "SimpleForce", "name", contents),
-            try parse.field(allocator, f64, "SimpleForce", "force", contents)
+            try sim.parse.string_field(allocator, Self, "name", contents),
+            try sim.parse.field(allocator, f64, Self, "force", contents)
         );
-        std.log.info("{s}", .{new.name});
-        return new;
     }
 
     // =========================================================================

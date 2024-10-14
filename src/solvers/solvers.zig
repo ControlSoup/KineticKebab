@@ -1,5 +1,5 @@
 const std = @import("std");
-const motion = @import("../physics/motion.zig");
+const motions = @import("../physics/motions.zig");
 
 // Maximum number of state variables an object can have (used to prevent allocations for integration)
 pub const MAX_STATE_LEN = 3;
@@ -7,7 +7,7 @@ pub const MAX_STATE_LEN = 3;
 pub const Integration = union(enum) {
     const Self = @This();
 
-    Motion1DOF: *motion.Motion1DOF,
+    Motion1DOF: *motions.Motion1DOF,
 
     pub fn name(self: *const Self) []const u8 {
         return switch (self.*) {
@@ -87,7 +87,7 @@ pub const Integration = union(enum) {
 
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
-            .Motion1DOF => return motion.Motion1DOF.header[0..]
+            .Motion1DOF => return motions.Motion1DOF.header[0..]
         };
     }
 
@@ -99,7 +99,7 @@ pub const Integration = union(enum) {
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
-            .Motion1DOF => return motion.Motion1DOF.header.len,
+            .Motion1DOF => return motions.Motion1DOF.header.len,
         };
     }
 
