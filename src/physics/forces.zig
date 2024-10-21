@@ -15,7 +15,7 @@ pub const Force = union(enum) {
         }
     }
 
-    pub fn add_connections(self: *const Self, connection: *motions.Motion1DOF) !void {
+    pub fn add_connection(self: *const Self, connection: *motions.Motion1DOF) !void {
         switch (self.*) {
             Force.Simple => |_| return,
             inline else => |f| {

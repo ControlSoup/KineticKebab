@@ -8,22 +8,22 @@
             "name": "UpstreamTest",
             "press": 1000,
             "temp": 277,
-            "fluid": "NitrogenIdealGas"
+            "fluid": "NitrogenIdealGas",
+            "connections_out": ["TestOrifice"]
         },
         {
             "object": "fluids.restrictions.Orifice",
             "name": "TestOrifice",
             "cda": 1.0,
-            "mdot_method": "IdealCompressible",
-            "connections_in": ["UpstreamTest"],
-            "connections_out": ["DownstreamTest"]
+            "mdot_method": "IdealCompressible"
         },
         {
             "object": "fluids.volumes.Void",
             "name": "DownstreamTest",
             "press": 10,
             "temp": 277,
-            "fluid": "NitrogenIdealGas"
+            "fluid": "NitrogenIdealGas",
+            "connections_in": ["TestOrifice"]
         }
     ]
 }

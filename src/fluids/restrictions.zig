@@ -15,18 +15,15 @@ pub const Restriction = union(enum){
 
     pub fn add_connection_in(
         self: *const Self, 
-        connection_in: sim.SimObject
+        volume_obj: sim.volumes.Volume
     ) !void{
         switch (self.*) {
             inline else => |f| {
                 if (f.connection_in) |_| {
-                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection_in.name()});
+                    std.log.err("ERROR| Object [{s}] is already connected to [{s}]", .{ f.name, (f.connection_in orelse unreachable).name()});
                     return sim.errors.AlreadyConnected;
                 } else {
-                    try switch(connection_in){
-                        .Void => |c| f.*.connection_in = c.as_volume(),
-                        else => sim.errors.InvalidInput,
-                    };
+                    f.*.connection_in = volume_obj;
                 }
             }
         }
@@ -34,33 +31,17 @@ pub const Restriction = union(enum){
 
     pub fn add_connection_out(
         self: *const Self, 
-        connection_out: sim.SimObject
+        volume_obj: sim.volumes.Volume
     ) !void{
         switch (self.*) {
             inline else => |f| {
                 if (f.connection_out) |_| {
-                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection_out.name()});
+                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.name, (f.connection_out orelse unreachable).name()});
                     return sim.errors.AlreadyConnected;
                 } else {
-                    try switch(connection_out){
-                        .Void => |c| f.*.connection_out = c.as_volume(),
-                        else => sim.errors.InvalidInput,
-                    };
+                       f.*.connection_out = volume_obj; 
                 }
             }
-        }
-    }
-
-    pub fn add_connections(
-        self: *const Self, 
-        connection_in: volumes.Volume, 
-        connection_out: volumes.Volume
-    ) !void {
-        switch (self.*) {
-            inline else => {
-                self.add_connection_in(connection_in);
-                self.add_connection_out(connection_out);
-            },
         }
     }
 
@@ -76,7 +57,7 @@ pub const Restriction = union(enum){
 
     pub fn save_values(self: *const Self, save_array: []f64) void{
         switch (self.*){
-            inline else => |impl| impl.save_values(save_array)
+            inline else => |impl| impl.save_values(save_array),
         }
     }
 
@@ -88,7 +69,7 @@ pub const Restriction = union(enum){
 
     pub fn save_len(self: *const Self) usize{
         return switch (self.*){
-            .Orifice => return Orifice.header.len
+            .Orifice => return Orifice.header.len,
         };
     }
 };
@@ -142,21 +123,21 @@ pub const Orifice = struct{
         );
     }
 
-    pub fn get_mdot(self: *Self) f64{
+    pub fn get_mdot(self: *Self) !f64{
 
         if (self.connection_in == null){
             std.log.err("ERROR| Object[{s}] is missing a connection_in", .{self.name});
             return sim.errors.AlreadyConnected; 
         }
 
-        var state_in = (self.connection_in orelse unreachable).*.state;
+        var state_in = (self.connection_in orelse unreachable).get_intrinsic();
 
         if (self.connection_out == null){
             std.log.err("ERROR| Object[{s}] is missing a connection_out", .{self.name});
             return sim.errors.AlreadyConnected; 
         }
 
-        var state_out = (self.connection_in orelse unreachable).*.state;
+        var state_out = (self.connection_in orelse unreachable).get_intrinsic();
 
         self.dp = state_in.press - state_out.press;
 

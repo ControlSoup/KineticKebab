@@ -34,6 +34,7 @@ pub const FluidState = struct{
     medium: FluidLookup,
     press: f64,
     temp: f64,
+    gamma: f64 = 0.0,
     density: f64 = 0.0,
     sp_enthalpy: f64 = 0.0,
     sp_inenergy: f64 = 0.0,
@@ -52,6 +53,7 @@ pub const FluidState = struct{
                 self.sp_enthalpy = impl.enthalpy0 - ideal_gas_sp_enthalpy(self.sp_inenergy, press, self.density);
                 self.sp_entropy = impl.entropy0 - ideal_gas_sp_entropy(impl.cv, temp, impl.molar_mass, press);
                 self.sos = ideal_gas_sos(impl.gamma, press, self.density);
+                self.gamma = impl.gamma;
             }
             
         }

@@ -110,19 +110,14 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         const socket: sim.SimObject = try new_sim_ptr._get_sim_object_by_name(connection_event.socket);
         const connection_type = connection_event.connection_type;
 
-        // Voids are special
-        if (plug == .Void){
-            switch(connection_type){
-                .In => try socket.Restriction.add_connection_in(plug),
-                .Out => try socket.Restriction.add_connection_out(plug),
-            }
-            continue;
-        }
-
         // Most objects go from plug -> socket
         try switch (socket){
             .Integration => |integration| switch (integration){
-                .Motion1DOF => |impl| impl.add_connection(plug)
+                .Motion1DOF => |impl| impl.add_connection(plug),
+                .Volume => |impl| switch(connection_type){
+                    .In => impl.add_connection_in(plug),
+                    .Out => impl.add_connection_out(plug)
+                }
             },
             inline else => {
                 std.log.err("ERROR| Failed to connect [{s}] to [{s}]", .{plug.name(), socket.name()});
@@ -131,6 +126,8 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         };
 
     }
+
+    for (new_sim_ptr.sim_objs.items) |obj| try obj.update();
 
     // Give the world the sim
     return new_sim_ptr;

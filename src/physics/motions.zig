@@ -75,17 +75,12 @@ pub const Motion1DOF = struct {
 
     pub fn add_connection(self: *Self, sim_obj: sim.SimObject) !void {
         try self.connections.append(sim_obj.Force);
-        try sim_obj.Force.add_connections(self);
-        try self.update();
+        try sim_obj.Force.add_connection(self);
     }
 
     // =========================================================================
     // SimObject Methods
     // =========================================================================
-
-    pub fn deinit(self: *Self) void {
-        self.connections.deinit();
-    }
 
     /// Creates a sim object interface, that holds a pointer to this object as integratable
     pub fn as_sim_object(self: *Self) sim.SimObject {

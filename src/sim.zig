@@ -2,6 +2,7 @@ const std = @import("std");
 pub const solvers = @import("solvers/solvers.zig");
 pub const motions = @import("physics/motions.zig");
 pub const forces = @import("physics/forces.zig");
+pub const intrinsic = @import("fluids/intrinsic.zig");
 pub const volumes = @import("fluids/volumes.zig");
 pub const restrictions = @import("fluids/restrictions.zig");
 pub const parse = @import("config/create_from_json.zig");
@@ -17,28 +18,24 @@ pub const errors = parse.errors || error{
 pub const SimObject = union(enum) {
     const Self = @This();
 
-    Void: *volumes.Void,
     Restriction: restrictions.Restriction,
     Force: forces.Force,
     Integration: solvers.Integration,
 
     pub fn name(self: *const Self) []const u8 {
         return switch (self.*) {
-            .Void => |impl| return impl.name,
             inline else => |impl| return impl.name()
         };
     }
 
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
-            .Void => return volumes.Void.header[0..],
             inline else => |impl| return impl.get_header(),
         };
     }
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
-            .Void => return volumes.Void.header.len,
             inline else => |impl| return impl.save_len()
         };
     }
@@ -53,7 +50,6 @@ pub const SimObject = union(enum) {
         return switch (self.*) {
             // Compute values don't require an update function
             .Force => return,
-            .Void => return,
             .Restriction => return,
             inline else => |impl| return impl.update(),
         };
@@ -63,10 +59,9 @@ pub const SimObject = union(enum) {
         switch (self.*) {
             // Compute values don't require an next function
             .Force => return,
-            .Void => return,
             .Restriction => return,
-            .Integration => |impl| {
-                try impl.rk4(dt);
+            .Integration => |impl| switch(impl){
+                inline else => try impl.rk4(dt)
             },
         }
     }

@@ -34,7 +34,7 @@ pub fn main() !void {
     const json_sim_result = try json_sim(allocator, input.items);
 
     json_sim_result._print_info();
-    try json_sim_result.step_duration(1.0);
-    json_sim_result._print_info();
+    // try json_sim_result.step_duration(1.0);
+    // json_sim_result._print_info();
 
 }
