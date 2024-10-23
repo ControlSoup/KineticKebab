@@ -101,7 +101,7 @@ pub const Spring = struct {
             return sim.errors.AlreadyConnected; 
         }
 
-        self.force = -self.spring_constant * ((self.position_ptr orelse unreachable).*.pos + self.preload);
+        self.force = -self.spring_constant * (self.position_ptr.?.*.pos + self.preload);
         return self.force;
     }
 

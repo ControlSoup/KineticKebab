@@ -20,7 +20,7 @@ pub const Restriction = union(enum){
         switch (self.*) {
             inline else => |f| {
                 if (f.connection_in) |_| {
-                    std.log.err("ERROR| Object [{s}] is already connected to [{s}]", .{ f.name, (f.connection_in orelse unreachable).name()});
+                    std.log.err("ERROR| Object [{s}] is already connected to [{s}]", .{ f.name, f.connection_in.?.name()});
                     return sim.errors.AlreadyConnected;
                 } else {
                     f.*.connection_in = volume_obj;
@@ -36,7 +36,7 @@ pub const Restriction = union(enum){
         switch (self.*) {
             inline else => |f| {
                 if (f.connection_out) |_| {
-                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.name, (f.connection_out orelse unreachable).name()});
+                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.name, f.connection_out.?.name()});
                     return sim.errors.AlreadyConnected;
                 } else {
                        f.*.connection_out = volume_obj; 
@@ -130,14 +130,14 @@ pub const Orifice = struct{
             return sim.errors.AlreadyConnected; 
         }
 
-        var state_in = (self.connection_in orelse unreachable).get_intrinsic();
+        var state_in = self.connection_in.?.get_intrinsic();
 
         if (self.connection_out == null){
             std.log.err("ERROR| Object[{s}] is missing a connection_out", .{self.name});
             return sim.errors.AlreadyConnected; 
         }
 
-        var state_out = (self.connection_in orelse unreachable).get_intrinsic();
+        var state_out = self.connection_out.?.get_intrinsic();
 
         self.dp = state_in.press - state_out.press;
 
@@ -148,21 +148,32 @@ pub const Orifice = struct{
             state_out = temp;
         }
 
+        if (self.dp == 0.0){
+            self.mdot = 0.0;
+            return 0.0;
+        }
+
         self.is_choked = ideal_is_choked(state_in.press, state_out.press, state_in.gamma);
 
-        return switch (self.mdot_method) {
-            .IdealCompressible => {
-                if (self.is_choked) return ideal_choked_mdot(self.cda, state_in.density, state_in.press, state_in.gamma);
-                if (!self.is_choked) return ideal_unchoked_mdot(self.cda, state_in.density, state_in.press, state_out.press, state_in.gamma);
-            }
-        };
+        switch (self.mdot_method) {
+            .IdealCompressible =>{ 
+                if (self.is_choked) {
+                    self.mdot = ideal_choked_mdot(self.cda, state_in.density, state_in.press, state_in.gamma);
+                } else {
+                    self.mdot = ideal_unchoked_mdot(self.cda, state_in.density, state_in.press, state_out.press, state_in.gamma);   
+                }
+            },
+        }
+
+        if (self.dp < 0.0) self.mdot *= -1;
+        return self.mdot;
     }
 
     pub fn save_values(self: *const Self, save_array: []f64) void{
         save_array[0] = self.cda;
         save_array[1] = self.mdot;
-        save_array[3] = self.dp;
-        save_array[2] = if (self.is_choked) 1.0 else 0.0;
+        save_array[2] = self.dp;
+        save_array[3] = if (self.is_choked) 1.0 else 0.0;
     }
 
     // =========================================================================
@@ -181,18 +192,21 @@ pub const Orifice = struct{
 // =============================================================================
 
 pub fn ideal_is_choked(us_stag_press: f64, ds_stag_press: f64, gamma: f64) bool {
-    return ds_stag_press < ((2.0 / gamma + 1.0) ** (gamma / gamma - 1.0)) * us_stag_press;
+    if (us_stag_press / ds_stag_press > 4) return true
+    else{
+        return ds_stag_press < std.math.pow(f64, 2.0 / (gamma + 1.0), gamma / (gamma - 1.0)) * us_stag_press;
+    }
 }
 
 pub fn ideal_unchoked_mdot(cda: f64, us_density: f64, us_press: f64, ds_press: f64, gamma: f64) f64{
-    const a = 2 * us_density * us_press;
-    const b = gamma / (gamma - 1.0);
-    const c = (ds_press / us_press)**(2.0/gamma) - (ds_press/us_press)**((gamma + 1.0) / gamma);
-    return cda * @sqrt(a * b * c);
+    const a: f64 = 2.0 * us_density * us_press;
+    const b: f64 = gamma / (gamma - 1.0);
+    const c: f64 = std.math.pow(f64, ds_press / us_press, 2.0 / gamma) - std.math.pow(f64, ds_press/us_press,(gamma + 1.0) / gamma);
+    return cda * std.math.sqrt(a * b * c);
 }
 
 pub fn ideal_choked_mdot(cda: f64, us_density: f64, us_press: f64, gamma: f64) f64{
-    const a = gamma * us_density * us_press;
-    const b = (2.0 / gamma + 1.0)**((gamma + 1)/(gamma - 1));
-    return cda * @sqrt(a*b);
+    const a: f64 = gamma * us_density * us_press;
+    const b: f64 = std.math.pow(f64, 2.0 / (gamma + 1.0),(gamma + 1)/(gamma - 1));
+    return cda * std.math.sqrt(a*b);
 }

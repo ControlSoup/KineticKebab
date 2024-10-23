@@ -89,7 +89,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
 
         } else if (contents.object.get("connections_out")) |connection_json| {
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
-                std.log.err("ERROR| Unable to parse connection_in for object [{s}], ensure its a single object name", .{obj_name});
+                std.log.err("ERROR| Unable to parse connection_out for object [{s}], ensure its a single object name", .{obj_name});
                 return errors.JsonConnectionListParseError;
             };
 
@@ -117,7 +117,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
                 .Volume => |impl| switch(connection_type){
                     .In => impl.add_connection_in(plug),
                     .Out => impl.add_connection_out(plug)
-                }
+                } 
             },
             inline else => {
                 std.log.err("ERROR| Failed to connect [{s}] to [{s}]", .{plug.name(), socket.name()});

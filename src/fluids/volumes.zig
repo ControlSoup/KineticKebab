@@ -15,21 +15,19 @@ pub const Volume = union(enum) {
 
     pub fn add_connection_in(self: *const Self, sim_obj: sim.SimObject) !void{
         switch (self.*){
-            .Void => |impl| try sim_obj.Restriction.add_connection_out(impl.*.as_volume()),
-            // inline else => |impl| {
-            //     try impl.connection_in.append(sim_obj.Restriction);
-            //     try sim_obj.Restriction.add_connection_out(impl);
-            // } 
+            inline else => |impl| {
+                try impl.connections_in.append(sim_obj.Restriction);
+                try sim_obj.Restriction.add_connection_out(impl.*.as_volume());
+            } 
         }
     }
 
     pub fn add_connection_out(self: *const Self, sim_obj: sim.SimObject) !void{
         switch (self.*){
-            .Void => |impl| try sim_obj.Restriction.add_connection_in(impl.*.as_volume()),
-            // inline else => |impl| {
-            //     try impl.connection_out.append(sim_obj.Restriction);
-            //     try sim_obj.Restriction.add_connection_in(impl);
-            // } 
+            inline else => |impl| {
+                try impl.connections_out.append(sim_obj.Restriction);
+                try sim_obj.Restriction.add_connection_in(impl.*.as_volume());
+            } 
         }
     }
 

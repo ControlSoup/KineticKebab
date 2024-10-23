@@ -122,11 +122,9 @@ pub const Sim = struct {
             try self.state_names.append(name);
             try self.state_vals.append(-404.0);
         }
-
         obj.save_values(
-            self.state_vals.items[(self.state_vals.items.len) - obj.save_len()..]
+            self.state_vals.items[(self.state_vals.items.len - obj.save_len())..]
         );
-
     }
 
     pub fn create_obj(self: *Self, obj: SimObject) !void {
@@ -184,8 +182,6 @@ pub const Sim = struct {
         return errors.SimObjectDoesNotExist;
     }
 
-
-        
     pub fn _print_info(self: *Self) void {
         std.log.info("\n\nTime [s]: {d:0.5}", .{self.time});
         std.log.info("Steps [-]: {d}", .{self.steps});
@@ -202,4 +198,6 @@ pub const Sim = struct {
             }
         }            
     }
+
+    
 };
