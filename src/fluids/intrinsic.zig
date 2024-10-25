@@ -24,6 +24,17 @@ pub const NitrogenIdealGas = FluidLookup{
     .IdealGas = IdealGas.init(1040.0, 1.4, 0.02002)
 };
 
+// test "test_ideal_gas"{
+
+//     // https://www.engineersedge.com/thermodynamics/ideal_gas_properties_nitrogen_14748.htm#google_vignette
+
+//     var nitrogen_state = FluidState.init(NitrogenIdealGas, 100_000, 100); 
+
+//     // try std.testing.expectApproxEqRel(148_390, nitrogen_state.sp_enthalpy, 1e-4);
+
+//     nitrogen_state.update_from_pt(100_00, 1100);
+// }
+
 // =============================================================================
 // FluidState
 // =============================================================================

@@ -172,6 +172,21 @@ pub const Sim = struct {
 
     }
 
+    pub fn get_save_index(self: *Self, name: [] const u8) !usize{
+    
+        for (self.state_names.items, 0..) |obj, i|{
+            if (std.mem.eql(u8, obj, name)) return i;
+        }
+
+        std.log.err("ERROR| Could not find index with object.save named [{s}]", .{name});
+        return errors.SimObjectDoesNotExist;
+    }
+
+    pub fn get_save_value_by_name(self: *Self, name: []const u8) !f64{
+        const index = try self.get_save_index(name);
+        return self.state_vals.items[index];
+    }
+
     pub fn _get_sim_object_by_name(self: *Self, name: []const u8) !SimObject{
 
         for (self.sim_objs.items) |obj|{
@@ -198,6 +213,9 @@ pub const Sim = struct {
             }
         }            
     }
-
-    
 };
+
+test {
+    _ = @import("model_tests/_tests.zig");
+    std.testing.refAllDecls(@This());
+}
