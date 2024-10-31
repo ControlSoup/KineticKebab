@@ -29,25 +29,32 @@ pub const SimObject = union(enum) {
 
     pub fn name(self: *const Self) []const u8 {
         return switch (self.*) {
-            .Sim => Sim.name,
+            .SimInfo => Sim.sim_name,
             inline else => |impl| return impl.name()
         };
     }
 
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
+            .SimInfo => Sim.sim_header[0..],
             inline else => |impl| return impl.get_header(),
         };
     }
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
+            .SimInfo => Sim.sim_header.len,
             inline else => |impl| return impl.save_len()
         };
     }
 
     pub fn save_values(self: *const Self, save_array: []f64) void {
         return switch (self.*) {
+            .SimInfo => |impl| {
+                save_array[0] = @as(f64, @floatFromInt(impl.steps));
+                save_array[1] = impl.dt;
+                save_array[2] = impl.time;
+            },
             inline else => |impl| impl.save_values(save_array),
         };
     }
@@ -70,8 +77,8 @@ pub const SimObject = union(enum) {
 
 pub const Sim = struct {
     const Self = @This();
-    const header = [][]const u8{"steps [-]", "dt [s]", "time [s]"};
-    const name = "sim";
+    const sim_header = [3][]const u8{"steps [-]", "dt [s]", "time [s]"};
+    const sim_name = "sim";
 
     allocator: std.mem.Allocator,
     dt: f64,
@@ -156,12 +163,13 @@ pub const Sim = struct {
             buff_loc += len;
         }
 
-        self.time += self.dt;
-        self.steps += 1;
-
         if (self.storage != null){
             try self.storage.?.write_row(self.state_vals.items);
         }
+
+        self.time += self.dt;
+        self.steps += 1;
+
     }
 
     pub fn step_duration(self: *Self, duration: f64) !void{
@@ -214,6 +222,10 @@ pub const Sim = struct {
             try parse.string_field(self.allocator, Self, "path", contents), 
             try parse.field(self.allocator, f64, Self, "time_window", contents),
         );
+    }
+
+    pub fn as_sim_object(self: *Self) SimObject{
+        return SimObject{.SimInfo =  self};
     }
 
     pub fn _print_info(self: *Self) void {

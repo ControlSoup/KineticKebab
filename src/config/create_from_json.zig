@@ -36,9 +36,8 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     const sim_options: json.Value = try _group_exists(parsed, "SimOptions");
     const new_sim_ptr: *sim.Sim = try sim.Sim.from_json(allocator, sim_options);
 
-    // If a recorder option exists start that
+    // See if recorder options are inlcuded
     const recorder_options :?json.Value = _group_optional(parsed, "RecorderOptions");
-
 
     // Create a queue for connections 
     var all_connections = std.ArrayList(Connection).init(allocator); 
@@ -115,6 +114,9 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         }
     }
 
+    // Add simulation info
+    try new_sim_ptr.add_obj(new_sim_ptr.as_sim_object());
+
     // Perform all connections
     for (all_connections.items) |connection_event|{
         const plug: sim.SimObject = try new_sim_ptr.get_sim_object_by_name(connection_event.plug);
@@ -166,6 +168,21 @@ pub fn field(allocator: std.mem.Allocator, comptime T: type, comptime S: type, k
         std.log.err("ERROR| Attempting to init [{s}] but [{s}] field is missing", .{@typeName(S), key});
         return errors.JsonObjectFieldMissing;
     };
+
+    const parsed = std.json.parseFromValue(T, allocator, object, .{}) catch {
+        std.log.err("ERROR| Could not parse field [{s}.{s}] check field matches type [{any}]", .{@typeName(S), key, T});
+        return errors.JsonObjectFieldInvalidType;
+    };
+
+    defer parsed.deinit();
+
+    const value = parsed.value;
+    return value;
+}
+
+pub fn optional_field(allocator: std.mem.Allocator, comptime T: type, comptime S: type, key: []const u8, contents: std.json.Value) !?T{
+
+    const object = contents.object.get(key) orelse return null;
 
     const parsed = std.json.parseFromValue(T, allocator, object, .{}) catch {
         std.log.err("ERROR| Could not parse field [{s}.{s}] check field matches type [{any}]", .{@typeName(S), key, T});

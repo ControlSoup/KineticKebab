@@ -9,8 +9,7 @@ pub const SimRecorder = struct{
     header_len: usize,
     pool_len: usize,
     pool_idx: usize = 0,
-    empty_slice: []f64,
-    contents: std.ArrayList([]f64),
+    contents: std.ArrayList(std.ArrayList(f64)),
 
     pub fn init(allocator: std.mem.Allocator, file_path: []const u8, header: [][]const u8, pool_len: usize) !Self{
         const file = try std.fs.cwd().createFile(file_path, .{});    
@@ -27,19 +26,12 @@ pub const SimRecorder = struct{
             try std.fmt.allocPrint(allocator, "{s}\n", .{header[header.len - 1]})
         );
 
-        const arr_ptr =  try allocator.alloc(f64, header.len);
-
-        for (0..header.len) |i|{
-            arr_ptr[i] = -404.0;
-        }
-
         return Self{
             .allocator = allocator,
             .file_path = file_path,
             .header_len = header.len,
             .pool_len = pool_len - 1,
-            .contents = try std.ArrayList([]f64).initCapacity(allocator, pool_len - 1),
-            .empty_slice = arr_ptr[0..header.len]
+            .contents = try std.ArrayList(std.ArrayList(f64)).initCapacity(allocator, pool_len - 1),
         };
     }
 
@@ -59,15 +51,15 @@ pub const SimRecorder = struct{
 
             // Write the contents to the file  
             for (0..self.contents.items.len) |i|{
-                for (0..self.contents.items[0].len - 1) |j|{
+                for (0..self.contents.items[0].items.len - 1) |j|{
                     _ = try file.writer().writeAll(
                         try std.fmt.allocPrint(self.allocator, "{d:.8},", 
-                        .{self.contents.items[i][j]}
+                        .{self.contents.items[i].items[j]}
                     ));
                 }
                 _ = try file.writer().writeAll(
                     try std.fmt.allocPrint(self.allocator, "{d:.8}\n", 
-                    .{self.contents.items[i][self.contents.items[0].len - 1]}
+                    .{self.contents.items[i].items[self.header_len - 1]}
                 ));
             }
 
@@ -87,14 +79,24 @@ pub const SimRecorder = struct{
             return;
         } 
 
-        self.contents.items[self.pool_idx]  = row;
+        for (row, 0..) |_, i|{
+            self.contents.items[self.pool_idx].items[i]  = row[i];
+        }
         self.pool_idx +=1;
     }
 
     pub fn init_pool(self: *Self) !void{
         self.contents.expandToCapacity();
+
         for (self.contents.items, 0..) |_, i|{
-            self.contents.items[i] = self.empty_slice;
+            self.contents.items[i] = try std.ArrayList(f64).initCapacity(self.allocator, self.header_len);
+            self.contents.items[i].expandToCapacity();
+        }
+
+        for (self.contents.items, 0..) |_, i|{
+            for (self.contents.items[0].items, 0..) |_, j|{
+                self.contents.items[i].items[j] = -404;
+            }
         }
     }
 
@@ -102,7 +104,7 @@ pub const SimRecorder = struct{
         std.log.err("Pool Print:", .{}); 
 
         for (self.contents.items) |i|{
-            for (i) |j|{
+            for (i.items) |j|{
                 std.log.err("{d:.8}", .{j});
             }
             std.log.err("", .{}); 
@@ -117,22 +119,13 @@ pub const SimRecorder = struct{
 //     defer arena.deinit();
 
 //     const file_path = "test.csv";
-//     var header = [2][]const u8{"test1", "test2"};
-//     var temp1 = [2]f64{1.0,2.0};
-//     var temp2 = [2]f64{10.0,20.0};
-//     var a = try SimRecorder.create(allocator, file_path, header[0..], 3);
+//     var header = [3][]const u8{"test1", "test2", "test3"};
+//     var temp1 = [3]f64{0.0,1.0,2.0};
+//     var a = try SimRecorder.create(allocator, file_path, header[0..], 4);
 
-//     a.print_pool();
-//     try a.write_row(temp1[0..]);
-//     a.print_pool();
-//     try a.write_row(temp1[0..]);
-//     a.print_pool();
-//     try a.write_row(temp2[0..]);
-//     a.print_pool();
-//     try a.write_row(temp1[0..]);
-//     a.print_pool();
-//     try a.write_row(temp1[0..]);
-//     a.print_pool();
-//     try a.write_row(temp1[0..]);
-//     a.print_pool();
+//     for (0..4) |i|{
+//         a.print_pool();
+//         temp1[0] = @floatFromInt(i);
+//         try a.write_row(temp1[0..]);
+//     }
 // }
