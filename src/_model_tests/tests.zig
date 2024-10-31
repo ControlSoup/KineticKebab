@@ -205,5 +205,6 @@ test "Motion2DOF"{
         1e-4,
     );
 
+    try model.storage.?.compress();
 
 }

@@ -110,6 +110,17 @@ pub const SimRecorder = struct{
             std.log.err("", .{}); 
         }
     }
+
+    pub fn compress(self: *Self) !void{
+        var file = try std.fs.cwd().openFile(self.file_path, .{.mode = .read_write});
+        defer file.close();
+        const new_file = try std.fs.cwd().createFile(
+            try std.fmt.allocPrint(self.allocator, "{s}.gzip", .{self.file_path}
+        ), .{});    
+        defer new_file.close();
+
+        try std.compress.gzip.compress(file.reader(), new_file.writer(), .{});
+    }
 };
 
 
