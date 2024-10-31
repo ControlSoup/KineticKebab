@@ -1,81 +1,62 @@
 const std = @import("std");
-const sim = @import("../sim.zig");
+const sim = @import("../../sim.zig");
 
 const MAX_STATE_LEN = sim.solvers.MAX_STATE_LEN;
 
-pub const Motion1DOF = struct {
+pub const Motion = struct {
     const Self = @This();
-    const ConnectionType = sim.forces.Force;
+    const ConnectionType = sim.forces.d1.Force;
     pub const header: [5][]const u8 = [5][]const u8{ "pos [m]", "vel [m/s]", "accel [m/s^2]", "net_force [N]", "mass [kg]" };
 
     name: []const u8,
-    max_pos: f64,
-    min_pos: f64,
     pos: f64,
     vel: f64 = 0.0,
     accel: f64 = 0.0,
     net_force: f64 = 0.0,
     mass: f64,
-    connections: std.ArrayList(sim.forces.Force),
+    connections: std.ArrayList(sim.forces.d1.Force),
 
     pub fn init(
         allocator: std.mem.Allocator,
         name: []const u8, 
-        max_pos: f64, 
-        min_pos: f64,
         pos: f64,
         mass: f64
     ) !Self{
 
-        if (max_pos < min_pos) {
-            std.log.err("ERROR| Object [{s}] max position [{d:0.4}] is less then min position [{d:0.4}]", .{name, max_pos, min_pos});
-            return sim.errors.InvalidInput;
-        }
-        if (min_pos == max_pos) {
-            std.log.err("ERROR| Object [{s}]  position [{d:0.4}] is equal to the min position [{d:0.4}]", .{name, max_pos, min_pos});
-            return sim.errors.InvalidInput;
-        }
-
         return Self{
             .name = name, 
-            .max_pos = max_pos, 
-            .min_pos = min_pos, 
             .pos = pos, 
             .mass = mass,
-            .connections = std.ArrayList(sim.forces.Force).init(allocator)
+            .connections = std.ArrayList(sim.forces.d1.Force).init(allocator)
         };
     }
 
     pub fn create(
         allocator: std.mem.Allocator, 
         name: []const u8, 
-        max_pos: f64, 
-        min_pos: f64,
         pos: f64,
         mass: f64
-    ) !*Motion1DOF {
+    ) !*Motion {
         const ptr = try allocator.create(Self);
-        ptr.* = try init(allocator, name, max_pos, min_pos, pos, mass);
+        ptr.* = try init(allocator, name, pos, mass);
         return ptr;
     }
 
     pub fn from_json(
         allocator: std.mem.Allocator,
         contents: std.json.Value
-    ) !*Motion1DOF{
+    ) !*Motion{
         return try create(
             allocator, 
             try sim.parse.string_field(allocator, Self, "name", contents),
-            try sim.parse.field(allocator, f64, Self, "max_pos", contents),
-            try sim.parse.field(allocator, f64, Self, "min_pos", contents),
             try sim.parse.field(allocator, f64, Self, "pos", contents),
             try sim.parse.field(allocator, f64, Self, "mass", contents),
         );
     }
 
     pub fn add_connection(self: *Self, sim_obj: sim.SimObject) !void {
-        try self.connections.append(sim_obj.Force);
-        try sim_obj.Force.add_connection(self);
+        try self.connections.append(sim_obj.Force1DOF);
+        try sim_obj.Force1DOF.add_connection(self);
     }
 
     // =========================================================================
@@ -98,13 +79,6 @@ pub const Motion1DOF = struct {
 
         // Get accel from force and mass
         self.accel = self.net_force / self.mass;
-
-        if (self.pos >= self.max_pos){
-            self.pos = self.max_pos;
-        }
-        if (self.pos <= self.min_pos){
-            self.pos = self.min_pos;
-        }
     }
 
     pub fn save_values(self: *Self, save_array: []f64) void {
@@ -125,11 +99,11 @@ pub const Motion1DOF = struct {
     }
 
     pub fn get_state(self: *Self) [MAX_STATE_LEN]f64 {
-        return [3]f64{ self.accel, self.vel, self.pos };
+        return [3]f64{ self.accel, self.vel, self.pos } ++ ([1]f64{0.0} ** 6);
     }
 
     pub fn get_dstate(self: *Self, state: [MAX_STATE_LEN]f64) [MAX_STATE_LEN]f64 {
         _ = self;
-        return [3]f64{ 0.0, state[0], state[1] };
+        return [3]f64{ 0.0, state[0], state[1] } ++ ([1]f64{0.0} ** 6);
     }
 };

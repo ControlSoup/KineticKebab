@@ -1,0 +1,32 @@
+{
+    "SimOptions":{
+        "dt": 1e-3 
+    },
+    "SimObjects":[
+        {
+            "object": "physics.motions.d1.Motion",
+            "name": "TestSimpleOnly",
+            "pos": 0.0,
+            "mass": 1.0,
+            "connections_in": ["TestSimple"]
+        },
+        {
+            "object": "physics.motions.d1.Motion",
+            "name": "TestSpringOnly",
+            "pos": 0.0,
+            "mass": 1.0,
+            "connections_in": ["TestSpring"]
+        },
+        {
+            "object": "physics.forces.d1.Spring",
+            "name": "TestSpring",
+            "preload":  1.0,
+            "spring_constant": 1.0
+        },
+        {
+            "object": "physics.forces.d1.Simple",
+            "name": "TestSimple",
+            "force": 1.0
+        }    
+    ]
+}

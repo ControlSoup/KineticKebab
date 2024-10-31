@@ -1,0 +1,202 @@
+const std = @import("std");
+const sim = @import("../../sim.zig");
+const MAX_STATE_LEN = sim.solvers.MAX_STATE_LEN;
+
+pub const Force = union(enum) {
+    const Self = @This();
+    Simple: *Simple,
+    BodySimple: *BodySimple,
+
+    pub fn get_force_moment_arr(self: *const Force) ![3]f64{
+        try switch (self.*) {
+            .Simple => |f| return [3]f64{f.x, f.y, f.moment},
+            inline else => |f| return f.get_force_moment_arr(),
+        };
+    }
+
+    pub fn add_connection(self: *const Self, connection: *sim.motions.d2.Motion) !void {
+        switch (self.*) {
+            .Simple => |_| return,
+            inline else => |f| {
+                if (f.cg_ptr) |_| {
+                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
+                    return sim.errors.AlreadyConnected;
+                } else {
+                    f.*.cg_ptr = connection;
+                }
+            },
+        }
+    }
+    
+
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
+
+    pub fn name(self: *const Self) []const u8{
+        return switch (self.*){
+            inline else => |impl| impl.name,
+        };
+    }
+
+    pub fn get_header(self: *const Self) []const []const u8{
+        return switch (self.*){
+            .Simple => return Simple.header[0..],
+            .BodySimple => return BodySimple.header[0..]
+        };
+    }
+
+    pub fn save_values(self: *const Self, save_array: []f64) void {
+        switch (self.*){
+            inline else => |impl| impl.save_values(save_array),
+        }
+    }
+
+    pub fn save_len(self: *const Self) usize{
+        return switch (self.*) {
+            .Simple => return Simple.header.len,
+            .BodySimple => return BodySimple.header.len
+        };
+    }
+
+};
+
+
+pub const Simple = struct {
+    const Self = @This();
+    pub const header: [3][]const u8 = [3][]const u8{"force.x [N]", "force.y [N]", "moment [N*m]"};
+
+    name: []const u8,
+    x: f64,
+    y: f64,
+    moment: f64,
+
+
+    pub fn init(name:[] const u8, x: f64, y: f64, moment: f64) Self{
+        return Simple{
+            .name = name, 
+            .x = x, 
+            .y = y,
+            .moment = moment
+        };
+    }
+
+    pub fn create(allocator: std.mem.Allocator, name:[]const u8, x: f64, y: f64, moment: f64) !*Self{
+        const ptr = try allocator.create(Simple);
+        ptr.* = init(name, x, y, moment);
+        return ptr;
+    }
+
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
+        return try create(
+            allocator,
+            try sim.parse.string_field(allocator, Self, "name", contents),
+            try sim.parse.field(allocator, f64, Self, "force.x", contents),
+            try sim.parse.field(allocator, f64, Self, "force.y", contents),
+            try sim.parse.field(allocator, f64, Self, "moment", contents),
+        );
+    }
+
+    // =========================================================================
+    // Force Methods
+    // =========================================================================
+
+    pub fn save_values(self: *Self, save_array: []f64) void {
+        save_array[0] = self.x;
+        save_array[1] = self.y;
+        save_array[2] = self.moment;
+    }
+
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{ .Force2DOF = Force{.Simple = self }};
+    }
+
+};
+
+pub const BodySimple = struct {
+    const Self = @This();
+    pub const header: [7][]const u8 = [7][]const u8{
+        "loc_cg.i [m]", 
+        "loc_cg.j [m]", 
+        "body_force.i [N]", 
+        "body_force.j [N]", 
+        "global_force.x [N]", 
+        "global_force.y [N]", 
+        "moment [N*m]", 
+    };
+
+    name: []const u8,
+    loc: sim.math.Vec2,
+    force: sim.math.Vec2,
+    global_force: sim.math.Vec2 = sim.math.Vec2.init_zeros(),
+    moment: f64 = 0.0,
+    cg_ptr: ?*sim.motions.d2.Motion = null,
+
+
+    pub fn init(name:[] const u8, loc_cg_x: f64, loc_cg_y: f64, x: f64, y: f64) Self{
+        return Self{
+            .name = name, 
+            .loc = sim.math.Vec2.init(loc_cg_x, loc_cg_y),
+            .force = sim.math.Vec2.init(x, y),
+        };
+    }
+
+    pub fn create(allocator: std.mem.Allocator, name:[]const u8, loc_cg_x: f64, loc_cg_y: f64, x: f64, y: f64) !*Self{
+        const ptr = try allocator.create(Self);
+        ptr.* = init(name, loc_cg_x, loc_cg_y, x, y);
+        return ptr;
+    }
+
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
+        return try create(
+            allocator,
+            try sim.parse.string_field(allocator, Self, "name", contents),
+            try sim.parse.field(allocator, f64, Self, "loc_cg.i", contents),
+            try sim.parse.field(allocator, f64, Self, "loc_cg.j", contents),
+            try sim.parse.field(allocator, f64, Self, "force.i", contents),
+            try sim.parse.field(allocator, f64, Self, "force.j", contents),
+        );
+    }
+
+    // =========================================================================
+    // Force Methods
+    // =========================================================================
+
+    pub fn save_values(self: *Self, save_array: []f64) void {
+        save_array[0] = self.loc.i;
+        save_array[1] = self.loc.j;
+        save_array[2] = self.force.i;
+        save_array[3] = self.force.j;
+        save_array[4] = self.global_force.i;
+        save_array[5] = self.global_force.j;
+        save_array[6] = self.moment;
+    }
+
+    pub fn get_force_moment_arr(self: *Self) ![3]f64{
+        if (self.cg_ptr == null){
+            std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
+            return sim.errors.MissingConnection; 
+        }
+
+        // Convert to the body frame of the object
+        self.global_force = sim.math.Vec2.from_angle_rad(self.force.norm(), self.cg_ptr.?.theta);
+
+        // Compute moments (r x F)
+        self.moment = (self.force.i * self.loc.j) + (self.force.j + self.loc.i);
+
+        return [3]f64{self.global_force.i, self.global_force.j, self.moment};
+    }
+
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{ .Force2DOF = Force{.BodySimple = self }};
+    }
+
+};

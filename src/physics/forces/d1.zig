@@ -1,7 +1,6 @@
 const std = @import("std");
-const sim = @import("../sim.zig");
-const motions = @import("motions.zig");
-const MAX_STATE_LEN = @import("../solvers/solvers.zig").MAX_STATE_LEN;
+const sim = @import("../../sim.zig");
+const MAX_STATE_LEN = sim.solvers.MAX_STATE_LEN;
 
 pub const Force = union(enum) {
     const Self = @This();
@@ -15,7 +14,7 @@ pub const Force = union(enum) {
         }
     }
 
-    pub fn add_connection(self: *const Self, connection: *motions.Motion1DOF) !void {
+    pub fn add_connection(self: *const Self, connection: *sim.motions.d1.Motion) !void {
         switch (self.*) {
             Force.Simple => |_| return,
             inline else => |f| {
@@ -69,7 +68,7 @@ pub const Spring = struct {
     spring_constant: f64,
     preload: f64,
     force: f64 = 0,
-    position_ptr: ?*motions.Motion1DOF = null,
+    position_ptr: ?*sim.motions.d1.Motion = null,
 
     pub fn init(name: []const u8, preload: f64, spring_constant: f64) Self {
         return Spring{ .name = name, .preload = preload, .spring_constant = spring_constant };
@@ -98,7 +97,7 @@ pub const Spring = struct {
 
         if (self.position_ptr == null){
             std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
-            return sim.errors.AlreadyConnected; 
+            return sim.errors.MissingConnection; 
         }
 
         self.force = -self.spring_constant * (self.position_ptr.?.*.pos + self.preload);
@@ -116,7 +115,7 @@ pub const Spring = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Force = Force{.Spring = self }};
+        return sim.SimObject{ .Force1DOF = Force{.Spring = self }};
     }
 
 };
@@ -159,7 +158,7 @@ pub const Simple = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Force = Force{.Simple = self }};
+        return sim.SimObject{ .Force1DOF = Force{.Simple = self }};
     }
 
 

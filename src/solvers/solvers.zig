@@ -2,17 +2,18 @@ const std = @import("std");
 const sim = @import("../sim.zig");
 
 // Maximum number of state variables an object can have (used to prevent allocations for integration)
-pub const MAX_STATE_LEN = 3;
+pub const MAX_STATE_LEN = 9;
 
 pub const Integration = union(enum) {
     const Self = @This();
 
-    Motion1DOF: *sim.motions.Motion1DOF,
+    Motion2DOF: *sim.motions.d2.Motion,
+    Motion1DOF: *sim.motions.d1.Motion,
     Volume: sim.volumes.Volume,
 
     pub fn name(self: *const Self) []const u8 {
         return switch (self.*) {
-            .Volume => |impl| return impl.name(),
+            .Volume => |impl| impl.name(),
             inline else => |m| m.name,
         };
     }
@@ -94,7 +95,8 @@ pub const Integration = union(enum) {
 
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
-            .Motion1DOF => return sim.motions.Motion1DOF.header[0..],
+            .Motion1DOF => return sim.motions.d1.Motion.header[0..],
+            .Motion2DOF => return sim.motions.d2.Motion.header[0..],
             .Volume => |impl| return impl.get_header()
         };
     }
@@ -107,7 +109,8 @@ pub const Integration = union(enum) {
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
-            .Motion1DOF => return sim.motions.Motion1DOF.header.len,
+            .Motion1DOF => return sim.motions.d1.Motion.header.len,
+            .Motion2DOF => return sim.motions.d2.Motion.header.len,
             .Volume => |impl| return impl.save_len()
         };
     }

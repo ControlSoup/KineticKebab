@@ -1,13 +1,16 @@
 const std = @import("std");
+pub const math = @import("math/math.zig");
 pub const solvers = @import("solvers/solvers.zig");
-pub const motions = @import("physics/motions.zig");
-pub const forces = @import("physics/forces.zig");
+pub const motions = @import("physics/motions/motions.zig");
+pub const forces = @import("physics/forces/forces.zig");
 pub const intrinsic = @import("fluids/intrinsic.zig");
 pub const volumes = @import("fluids/volumes.zig");
 pub const restrictions = @import("fluids/restrictions.zig");
 pub const parse = @import("config/create_from_json.zig");
+pub const recorder = @import("recorder.zig");
 
 pub const errors = parse.errors || error{
+    SimObjectDuplicate,
     SimObjectDoesNotExist,
     InputLessThanZero,
     InvalidInput,
@@ -19,11 +22,14 @@ pub const SimObject = union(enum) {
     const Self = @This();
 
     Restriction: restrictions.Restriction,
-    Force: forces.Force,
+    Force1DOF: forces.d1.Force,
+    Force2DOF: forces.d2.Force,
     Integration: solvers.Integration,
+    SimInfo: *Sim,
 
     pub fn name(self: *const Self) []const u8 {
         return switch (self.*) {
+            .Sim => Sim.name,
             inline else => |impl| return impl.name()
         };
     }
@@ -48,28 +54,24 @@ pub const SimObject = union(enum) {
 
     pub fn update(self: *const Self) !void {
         return switch (self.*) {
-            // Compute values don't require an update function
-            .Force => return,
-            .Restriction => return,
-            inline else => |impl| return impl.update(),
+            .Integration => |impl| impl.update(),
+            inline else => return,
         };
     }
 
     pub fn next(self: *const Self, dt: f64) !void {
-        switch (self.*) {
-            // Compute values don't require an next function
-            .Force => return,
-            .Restriction => return,
-            .Integration => |impl| switch(impl){
-                inline else => try impl.rk4(dt)
-            },
-        }
+        try switch (self.*) {
+            .Integration => |impl| impl.rk4(dt),
+            inline else => return,
+        };
     }
 
 };
 
 pub const Sim = struct {
     const Self = @This();
+    const header = [][]const u8{"steps [-]", "dt [s]", "time [s]"};
+    const name = "sim";
 
     allocator: std.mem.Allocator,
     dt: f64,
@@ -78,6 +80,7 @@ pub const Sim = struct {
     sim_objs: std.ArrayList(SimObject),
     state_names: std.ArrayList([]const u8),
     state_vals: std.ArrayList(f64),
+    storage: ?*recorder.SimRecorder = null,
 
     pub fn init(allocator: std.mem.Allocator, dt: f64) !Self {
 
@@ -112,7 +115,6 @@ pub const Sim = struct {
     pub fn add_obj(self: *Self, obj: SimObject) !void {
 
         try self._name_exists(obj.name());
-
 
         try self.sim_objs.append(obj);
         for (obj.get_header()) |header| {
@@ -156,6 +158,10 @@ pub const Sim = struct {
 
         self.time += self.dt;
         self.steps += 1;
+
+        if (self.storage != null){
+            try self.storage.?.write_row(self.state_vals.items);
+        }
     }
 
     pub fn step_duration(self: *Self, duration: f64) !void{
@@ -187,7 +193,7 @@ pub const Sim = struct {
         return self.state_vals.items[index];
     }
 
-    pub fn _get_sim_object_by_name(self: *Self, name: []const u8) !SimObject{
+    pub fn get_sim_object_by_name(self: *Self, name: []const u8) !SimObject{
 
         for (self.sim_objs.items) |obj|{
             if (std.mem.eql(u8, obj.name(), name)) return obj;
@@ -197,11 +203,24 @@ pub const Sim = struct {
         return errors.SimObjectDoesNotExist;
     }
 
+    pub fn create_recorder(self: *Self, file_path: []const u8, pool_time: f64) !void{
+        const pool_len = @as(usize, @intFromFloat(pool_time / self.dt));
+        self.storage = try recorder.SimRecorder.create(self.allocator, file_path, self.state_names.items, pool_len);
+    }
+
+    pub fn create_recorder_from_json(self: *Self, contents: std.json.Value) !void{
+        try create_recorder(
+            self, 
+            try parse.string_field(self.allocator, Self, "path", contents), 
+            try parse.field(self.allocator, f64, Self, "time_window", contents),
+        );
+    }
+
     pub fn _print_info(self: *Self) void {
-        std.log.info("\n\nTime [s]: {d:0.5}", .{self.time});
-        std.log.info("Steps [-]: {d}", .{self.steps});
+        std.log.err("\n\nTime [s]: {d:0.5}", .{self.time});
+        std.log.err("Steps [-]: {d}", .{self.steps});
         for (self.state_names.items, self.state_vals.items) |name, val| {
-            std.log.info("{s}: {d:0.4}", .{ name, val });
+            std.log.err("{s}: {d:0.4}", .{ name, val });
         }
     }
 
@@ -209,13 +228,13 @@ pub const Sim = struct {
         for (self.state_names.items) |name2|{
             if (std.mem.eql(u8, name1, name2)) {
                 std.log.err("ERROR| Object Name [{s}] already exists, please remove duplicate", .{name1});
-                return errors.SimObjectDoesNotExist;
+                return errors.SimObjectDuplicate;
             }
         }            
     }
 };
 
 test {
-    _ = @import("model_tests/_tests.zig");
+    _ = @import("_model_tests/tests.zig");
     std.testing.refAllDecls(@This());
 }

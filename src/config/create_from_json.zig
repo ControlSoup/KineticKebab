@@ -14,7 +14,7 @@ pub const errors = error{
 
 pub const ConnectionType = enum{
     In,
-    Out
+    Out,
 };
 
 pub const Connection = struct{
@@ -36,6 +36,10 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     const sim_options: json.Value = try _group_exists(parsed, "SimOptions");
     const new_sim_ptr: *sim.Sim = try sim.Sim.from_json(allocator, sim_options);
 
+    // If a recorder option exists start that
+    const recorder_options :?json.Value = _group_optional(parsed, "RecorderOptions");
+
+
     // Create a queue for connections 
     var all_connections = std.ArrayList(Connection).init(allocator); 
 
@@ -47,17 +51,16 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         const obj_name = try string_field(allocator, json.Value, "object", contents);
 
         // Init specific objects, as a sim object interface
-        if (std.mem.eql(u8, obj_name, @typeName(sim.motions.Motion1DOF))){
-            const new_obj_ptr = try sim.motions.Motion1DOF.from_json(allocator, contents);
+        if (std.mem.eql(u8, obj_name, @typeName(sim.motions.d1.Motion))){
+            const new_obj_ptr = try sim.motions.d1.Motion.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
-
         } 
-        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.Simple))){
-            const new_obj_ptr = try sim.forces.Simple.from_json(allocator, contents);
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d1.Simple))){
+            const new_obj_ptr = try sim.forces.d1.Simple.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
         }
-        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.Spring))){
-            const new_obj_ptr = try sim.forces.Spring.from_json(allocator, contents);
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d1.Spring))){
+            const new_obj_ptr = try sim.forces.d1.Spring.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
         } 
         else if (std.mem.eql(u8, obj_name, @typeName(sim.volumes.Void))){
@@ -67,56 +70,65 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         else if (std.mem.eql(u8, obj_name, @typeName(sim.restrictions.Orifice))){
             const new_obj_ptr = try sim.restrictions.Orifice.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
-        }else{
+        }
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.motions.d2.Motion))){
+            const new_obj_ptr = try sim.motions.d2.Motion.from_json(allocator, contents);
+            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+        }
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d2.Simple))){
+            const new_obj_ptr = try sim.forces.d2.Simple.from_json(allocator, contents);
+            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+        }
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d2.BodySimple))){
+            const new_obj_ptr = try sim.forces.d2.BodySimple.from_json(allocator, contents);
+            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+        }
+        else{
             errdefer std.log.err("ERROR| Object [{s}] was unable to be created", .{obj_name});
             return errors.JsonMissingGroup;
         }
 
         // Attempt to grab connections
 
+        errdefer std.log.err("ERROR| Unable to parse connection for object [{s}]", .{obj_name});
 
         if (contents.object.get("connections_in")) |connection_json| {
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
-                std.log.err("ERROR| Unable to parse connection_in for object [{s}], ensure its a single object name", .{obj_name});
                 return errors.JsonConnectionListParseError;
             };
 
-            // Add any connection_in for future attachment
             for (connections.value) |connection|{
                 const latest_added_obj = new_sim_ptr.sim_objs.items[new_sim_ptr.sim_objs.items.len - 1].name();
                 try all_connections.append(Connection.new(connection, latest_added_obj, .In));
             }
-
-        } else if (contents.object.get("connections_out")) |connection_json| {
+        } 
+        else if (contents.object.get("connections_out")) |connection_json| {
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
-                std.log.err("ERROR| Unable to parse connection_out for object [{s}], ensure its a single object name", .{obj_name});
                 return errors.JsonConnectionListParseError;
             };
 
-            // Add any connection_in for future attachment
             for (connections.value) |connection|{
                 const latest_added_obj = new_sim_ptr.sim_objs.items[new_sim_ptr.sim_objs.items.len - 1].name();
                 try all_connections.append(Connection.new(connection, latest_added_obj, .Out));
             }
 
         }
-
-
     }
 
     // Perform all connections
     for (all_connections.items) |connection_event|{
-        const plug: sim.SimObject = try new_sim_ptr._get_sim_object_by_name(connection_event.plug);
-        const socket: sim.SimObject = try new_sim_ptr._get_sim_object_by_name(connection_event.socket);
+        const plug: sim.SimObject = try new_sim_ptr.get_sim_object_by_name(connection_event.plug);
+        const socket: sim.SimObject = try new_sim_ptr.get_sim_object_by_name(connection_event.socket);
         const connection_type = connection_event.connection_type;
 
         // Most objects go from plug -> socket
         try switch (socket){
             .Integration => |integration| switch (integration){
                 .Motion1DOF => |impl| impl.add_connection(plug),
+                .Motion2DOF => |impl| impl.add_connection(plug),
                 .Volume => |impl| switch(connection_type){
-                    .In => impl.add_connection_in(plug),
-                    .Out => impl.add_connection_out(plug)
+                    .In => try impl.add_connection_in(plug),
+                    .Out => try impl.add_connection_out(plug),
                 } 
             },
             inline else => {
@@ -125,6 +137,10 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             }
         };
 
+    }
+
+    if (recorder_options != null){
+        try new_sim_ptr.create_recorder_from_json(recorder_options.?);
     }
 
     for (new_sim_ptr.sim_objs.items) |obj| try obj.update();
@@ -138,6 +154,10 @@ pub fn _group_exists(parsed: json.Parsed(json.Value), key: []const u8) !json.Val
         errdefer std.log.err("ERROR| Json does not contain [{s}] please add it", .{key});
         return errors.JsonMissingGroup;
     };
+}
+
+pub fn _group_optional(parsed: json.Parsed(json.Value), key: []const u8) ?json.Value{
+    return parsed.value.object.get(key) orelse return null;
 }
 
 pub fn field(allocator: std.mem.Allocator, comptime T: type, comptime S: type, key: []const u8, contents: std.json.Value) !T{
