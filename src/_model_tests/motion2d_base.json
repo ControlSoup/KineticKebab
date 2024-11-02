@@ -2,10 +2,6 @@
     "SimOptions":{
         "dt": 1e-3 
     },
-    "RecorderOptions":{
-        "path": "example.csv",   
-        "time_window": 0.1
-    },
     "SimObjects":[
         {
             "object": "physics.motions.d2.Motion",

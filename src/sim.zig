@@ -163,7 +163,7 @@ pub const Sim = struct {
             buff_loc += len;
         }
 
-        if (self.storage != null){
+        if (self.storage != null) {
             try self.storage.?.write_row(self.state_vals.items);
         }
 
@@ -184,6 +184,13 @@ pub const Sim = struct {
             try self.step();
         }
 
+    }
+
+    pub fn end(self: *Self) !void{
+        if (self.storage != null) {
+            try self.storage.?.write_remaining();
+            try self.storage.?.compress();
+        }
     }
 
     pub fn get_save_index(self: *Self, name: [] const u8) !usize{
@@ -220,7 +227,7 @@ pub const Sim = struct {
         try create_recorder(
             self, 
             try parse.string_field(self.allocator, Self, "path", contents), 
-            try parse.field(self.allocator, f64, Self, "time_window", contents),
+            try parse.optional_field(self.allocator, f64, Self, "pool_window", contents) orelse 100.0,
         );
     }
 

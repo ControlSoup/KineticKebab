@@ -85,6 +85,27 @@ pub const SimRecorder = struct{
         self.pool_idx +=1;
     }
 
+    pub fn write_remaining(self: *Self) !void{
+            const file = try std.fs.cwd().openFile(self.file_path, .{.mode = .read_write});    
+            const stat = try file.stat();
+            try file.seekTo(stat.size);
+            defer file.close();
+
+            // Write the contents to the file  
+            for (0..self.pool_idx - 1) |i|{
+                for (0..self.contents.items[0].items.len - 1) |j|{
+                    _ = try file.writer().writeAll(
+                        try std.fmt.allocPrint(self.allocator, "{d:.8},", 
+                        .{self.contents.items[i].items[j]}
+                    ));
+                }
+                _ = try file.writer().writeAll(
+                    try std.fmt.allocPrint(self.allocator, "{d:.8}\n", 
+                    .{self.contents.items[i].items[self.header_len - 1]}
+                ));
+            }
+    }
+
     pub fn init_pool(self: *Self) !void{
         self.contents.expandToCapacity();
 
@@ -113,13 +134,15 @@ pub const SimRecorder = struct{
 
     pub fn compress(self: *Self) !void{
         var file = try std.fs.cwd().openFile(self.file_path, .{.mode = .read_write});
-        defer file.close();
         const new_file = try std.fs.cwd().createFile(
             try std.fmt.allocPrint(self.allocator, "{s}.gzip", .{self.file_path}
         ), .{});    
         defer new_file.close();
 
         try std.compress.gzip.compress(file.reader(), new_file.writer(), .{});
+
+        file.close();
+        try std.fs.cwd().deleteFile(self.file_path);
     }
 };
 

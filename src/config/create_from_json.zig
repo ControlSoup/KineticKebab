@@ -33,18 +33,18 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     defer parsed.deinit();
 
     // Create a new sim
-    const sim_options: json.Value = try _group_exists(parsed, "SimOptions");
+    const sim_options: json.Value = try group_exists(parsed, "SimOptions");
     const new_sim_ptr: *sim.Sim = try sim.Sim.from_json(allocator, sim_options);
 
     // See if recorder options are inlcuded
-    const recorder_options :?json.Value = _group_optional(parsed, "RecorderOptions");
+    const recorder_options :?json.Value = optional_group_exists(parsed, "RecorderOptions");
 
     // Create a queue for connections 
     var all_connections = std.ArrayList(Connection).init(allocator); 
 
     // Add objects
-    const sim_objs: json.Value = try _group_exists(parsed, "SimObjects");
-    for (sim_objs.array.items) |contents|{
+    const sim_objs: json.Value = try group_exists(parsed, "SimObjects");
+    for (sim_objs.array.items) |contents| {
 
 
         const obj_name = try string_field(allocator, json.Value, "object", contents);
@@ -151,14 +151,14 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     return new_sim_ptr;
 }
 
-pub fn _group_exists(parsed: json.Parsed(json.Value), key: []const u8) !json.Value{
+pub fn group_exists(parsed: json.Parsed(json.Value), key: []const u8) !json.Value{
     return parsed.value.object.get(key) orelse {
         errdefer std.log.err("ERROR| Json does not contain [{s}] please add it", .{key});
         return errors.JsonMissingGroup;
     };
 }
 
-pub fn _group_optional(parsed: json.Parsed(json.Value), key: []const u8) ?json.Value{
+pub fn optional_group_exists(parsed: json.Parsed(json.Value), key: []const u8) ?json.Value{
     return parsed.value.object.get(key) orelse return null;
 }
 
