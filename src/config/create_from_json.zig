@@ -36,8 +36,6 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     const sim_options: json.Value = try group_exists(parsed, "SimOptions");
     const new_sim_ptr: *sim.Sim = try sim.Sim.from_json(allocator, sim_options);
 
-    // See if recorder options are inlcuded
-    const recorder_options :?json.Value = optional_group_exists(parsed, "RecorderOptions");
 
     // Create a queue for connections 
     var all_connections = std.ArrayList(Connection).init(allocator); 
@@ -141,6 +139,8 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
 
     }
 
+    // See if recorder options are inlcuded
+    const recorder_options :?json.Value = optional_group_exists(parsed, "RecorderOptions");
     if (recorder_options != null){
         try new_sim_ptr.create_recorder_from_json(recorder_options.?);
     }

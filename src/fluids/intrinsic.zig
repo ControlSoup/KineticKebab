@@ -10,11 +10,16 @@ const sim = @import("../sim.zig");
 pub const FluidLookup = union(enum){
     const Self = @This();
     IdealGas: IdealGas,
+    CoolProp: []const u8,
 
     pub fn from_str(lookup_str: []const u8) !Self{
         if (std.mem.eql(u8, lookup_str, "NitrogenIdealGas")){
             return NitrogenIdealGas;
-        }else {
+        }
+        else if (std.mem.eql(u8, lookup_str, NitrogenCoolProp)){
+            return FluidLookup{.CoolProp = NitrogenCoolProp};
+        }
+        else {
             return sim.errors.InvalidInput;
         } 
     }
@@ -24,16 +29,8 @@ pub const NitrogenIdealGas = FluidLookup{
     .IdealGas = IdealGas.init(1040.0, 1.4, 0.02002)
 };
 
-// test "test_ideal_gas"{
+pub const NitrogenCoolProp: []const u8 = "Nitogen";
 
-//     // https://www.engineersedge.com/thermodynamics/ideal_gas_properties_nitrogen_14748.htm#google_vignette
-
-//     var nitrogen_state = FluidState.init(NitrogenIdealGas, 100_000, 100); 
-
-//     // try std.testing.expectApproxEqRel(148_390, nitrogen_state.sp_enthalpy, 1e-4);
-
-//     nitrogen_state.update_from_pt(100_00, 1100);
-// }
 
 // =============================================================================
 // FluidState
@@ -65,6 +62,14 @@ pub const FluidState = struct{
                 self.sp_entropy = impl.entropy0 - ideal_gas_sp_entropy(impl.cv, temp, impl.molar_mass, press);
                 self.sos = ideal_gas_sos(impl.gamma, press, self.density);
                 self.gamma = impl.gamma;
+            },
+            .CoolProp => |impl| {
+                self.density = sim.coolprop.get_property("D", "P", self.press, "T", self.temp, impl);
+                self.sp_inenergy = sim.coolprop.get_property("U", "P", self.press, "T", self.temp, impl);
+                self.sp_enthalpy = sim.coolprop.get_property("H", "P", self.press, "T", self.temp, impl);
+                self.sp_entropy = sim.coolprop.get_property("S", "P", self.press, "T", self.temp, impl);
+                self.sos = sim.coolprop.get_property("A", "P", self.press, "T", self.temp, impl);
+                self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", self.press, "T", self.temp, impl);
             }
             
         }

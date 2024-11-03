@@ -38,3 +38,8 @@ pub fn main() !void {
     json_sim_result._print_info();
 
 }
+
+test {
+    _ = @import("_model_tests/tests.zig");
+    std.testing.refAllDecls(@This());
+}

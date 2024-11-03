@@ -22,10 +22,24 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    exe.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    exe.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    exe.linkSystemLibrary("CoolProp");
+    exe.linkLibC();
+
+
+    const so = b.addSharedLibrary(.{
+        .name = "kinetic_kebab",
+        .root_source_file = b.path("src/sim.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
     b.installArtifact(exe);
+    b.installArtifact(so);
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
@@ -53,10 +67,15 @@ pub fn build(b: *std.Build) void {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
+        .root_source_file = b.path("src/sim.zig"),
         .target = target,
         .optimize = optimize,
     });
+    lib_unit_tests.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/_model_tests/"}});
+    lib_unit_tests.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    lib_unit_tests.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    lib_unit_tests.linkSystemLibrary("CoolProp");
+    lib_unit_tests.linkLibC();
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 
@@ -65,6 +84,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe_unit_tests.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/_model_tests/"}});
+    exe_unit_tests.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    exe_unit_tests.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    exe_unit_tests.linkSystemLibrary("CoolProp");
+    exe_unit_tests.linkLibC();
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

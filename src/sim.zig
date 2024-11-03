@@ -8,6 +8,7 @@ pub const volumes = @import("fluids/volumes.zig");
 pub const restrictions = @import("fluids/restrictions.zig");
 pub const parse = @import("config/create_from_json.zig");
 pub const recorder = @import("recorder.zig");
+pub const coolprop = @import("3rdparty/coolprop.zig");
 
 pub const errors = parse.errors || error{
     SimObjectDuplicate,
@@ -156,8 +157,9 @@ pub const Sim = struct {
             const len: usize = obj.save_len();
             const save_buffer = self.state_vals.items[buff_loc .. buff_loc + len];
 
-            // Ensures I don't need to check every method for length....less verbose more clunky
+            // Ensures I don't need to check every method for length
             try std.testing.expect(save_buffer.len == obj.save_len());
+
             obj.save_values(save_buffer);
 
             buff_loc += len;
