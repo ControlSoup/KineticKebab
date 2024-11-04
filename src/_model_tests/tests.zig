@@ -23,7 +23,7 @@ test "TransientOrificeFlow"{
     \\            "name": "UpstreamTest",
     \\            "press": 200000,
     \\            "temp": 277,
-    \\            "fluid": "NitrogenIdealGas",
+    \\            "fluid": "Nitrogen",
     \\            "connections_out": ["TestUnchokedOrifice", "TestChokedOrifice"]
     \\        },
     \\        {
@@ -43,7 +43,7 @@ test "TransientOrificeFlow"{
     \\            "name": "DownstreamTest",
     \\            "press": 50000,
     \\            "temp": 277,
-    \\            "fluid": "NitrogenIdealGas",
+    \\            "fluid": "Nitrogen",
     \\            "connections_in": ["TestChokedOrifice"]
     \\        },
     \\        {
@@ -51,7 +51,7 @@ test "TransientOrificeFlow"{
     \\            "name": "DownstreamUnchokedTest",
     \\            "press": 190000,
     \\            "temp": 277,
-    \\            "fluid": "NitrogenIdealGas",
+    \\            "fluid": "Nitrogen",
     \\            "connections_in": ["TestUnchokedOrifice"]
     \\        }
     \\    ]
@@ -104,6 +104,64 @@ test "TransientOrificeFlow"{
     try std.testing.expectApproxEqRel(uch_mdot, actual_unch_mdot, 1e-4);
 
     try model.end();
+}
+
+test "Blowdown"{
+    // ========================================================================= 
+    // Allocation
+    // ========================================================================= 
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = arena.allocator();
+    defer arena.deinit();
+
+    // ========================================================================= 
+    // Json
+    // ========================================================================= 
+    var json=
+    \\{
+    \\    "SimOptions":{
+    \\        "dt": 1e-3 
+    \\    },
+    \\    "RecorderOptions":{
+    \\        "path": "../ContraHopper/Data/blowdown.csv"
+    \\    },
+    \\    "SimObjects":[
+    \\        {
+    \\            "object": "fluids.volumes.Static",
+    \\            "name": "UpstreamTest",
+    \\            "press": 200000,
+    \\            "temp": 277,
+    \\            "volume": 10,
+    \\            "fluid": "Nitrogen",
+    \\            "connections_out": ["TestOrifice"]
+    \\        },
+    \\        {
+    \\            "object": "fluids.restrictions.Orifice",
+    \\            "name": "TestOrifice",
+    \\            "cda": 0.075,
+    \\            "mdot_method": "IdealCompressible"
+    \\        },
+    \\        {
+    \\            "object": "fluids.volumes.Void",
+    \\            "name": "DownstreamTest",
+    \\            "press": 100000,
+    \\            "temp": 277,
+    \\            "fluid": "Nitrogen",
+    \\            "connections_in": ["TestOrifice"]
+    \\        }
+    \\    ]
+    \\}
+
+    ;
+
+    // ========================================================================= 
+    // Sim
+    // ========================================================================= 
+    const model = try sim.parse.json_sim(allocator, json[0..]);
+
+    try model.step_duration(0.1);
+    try model.end();
+
 }
 
 test "Motion1DOF"{

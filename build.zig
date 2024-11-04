@@ -15,6 +15,8 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    const clap = b.dependency("clap", .{});
+
     const exe = b.addExecutable(.{
         .name = "kinetic_kebab",
         .root_source_file = b.path("src/main.zig"),
@@ -22,6 +24,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    exe.root_module.addImport("clap", clap.module("clap"));
     exe.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
     exe.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
     exe.linkSystemLibrary("CoolProp");

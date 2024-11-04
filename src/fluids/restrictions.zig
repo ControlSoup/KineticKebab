@@ -13,6 +13,12 @@ pub const Restriction = union(enum){
         }
     }
 
+    pub fn get_hdot(self: *const Self) !f64{
+        switch (self.*){
+            inline else => |r| return r.get_hdot(),
+        }
+    }
+
     pub fn add_connection_in(
         self: *const Self, 
         volume_obj: sim.volumes.Volume
@@ -125,18 +131,9 @@ pub const Orifice = struct{
 
     pub fn get_mdot(self: *Self) !f64{
 
-        if (self.connection_in == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection_in", .{self.name});
-            return sim.errors.AlreadyConnected; 
-        }
+        try self._check_connections();
 
         var state_in = self.connection_in.?.get_intrinsic();
-
-        if (self.connection_out == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection_out", .{self.name});
-            return sim.errors.AlreadyConnected; 
-        }
-
         var state_out = self.connection_out.?.get_intrinsic();
 
         self.dp = state_in.press - state_out.press;
@@ -169,6 +166,20 @@ pub const Orifice = struct{
         return self.mdot;
     }
 
+    pub fn get_hdot(self: *Self) !f64{
+        if (self.mdot == 0){
+            return 0.0;
+        }
+
+        try self._check_connections();
+
+        if (self.mdot > 0.0){
+            return self.connection_in.?.get_intrinsic().sp_enthalpy;
+        } else{
+            return self.connection_out.?.get_intrinsic().sp_enthalpy;
+        }
+    }
+
     pub fn save_values(self: *const Self, save_array: []f64) void{
         save_array[0] = self.cda;
         save_array[1] = self.mdot;
@@ -182,6 +193,20 @@ pub const Orifice = struct{
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
         return sim.SimObject{.Restriction = Restriction{.Orifice = self}};
+    }
+
+    pub fn _check_connections(self: *Self) !void{
+
+        if (self.connection_in == null){
+            std.log.err("ERROR| Object[{s}] is missing a connection_in", .{self.name});
+            return sim.errors.AlreadyConnected; 
+        }
+
+
+        if (self.connection_out == null){
+            std.log.err("ERROR| Object[{s}] is missing a connection_out", .{self.name});
+            return sim.errors.AlreadyConnected; 
+        }
     }
 
 

@@ -16,7 +16,8 @@ pub const errors = parse.errors || error{
     InputLessThanZero,
     InvalidInput,
     AlreadyConnected,
-    MissingConnection 
+    MissingConnection,
+    MismatchedLength 
 };
 
 pub const SimObject = union(enum) {
@@ -139,10 +140,10 @@ pub const Sim = struct {
 
     pub fn create_obj(self: *Self, obj: SimObject) !void {
         const ptr = try self.allocator.create(SimObject);
-
-        // Enforce copy
         const new_obj = obj;
         ptr.* = new_obj;
+
+        // Save sim information
         try self.add_obj(ptr.*);
     }
 
@@ -221,15 +222,16 @@ pub const Sim = struct {
     }
 
     pub fn create_recorder(self: *Self, file_path: []const u8, pool_time: f64) !void{
-        const pool_len = @as(usize, @intFromFloat(pool_time / self.dt));
-        self.storage = try recorder.SimRecorder.create(self.allocator, file_path, self.state_names.items, pool_len);
+        _ = @as(usize, @intFromFloat(pool_time / self.dt));
+
+        self.storage = try recorder.SimRecorder.create(self.allocator, file_path, self.state_names.items, 1);
     }
 
     pub fn create_recorder_from_json(self: *Self, contents: std.json.Value) !void{
         try create_recorder(
             self, 
             try parse.string_field(self.allocator, Self, "path", contents), 
-            try parse.optional_field(self.allocator, f64, Self, "pool_window", contents) orelse 100.0,
+            try parse.optional_field(self.allocator, f64, Self, "pool_window", contents) orelse 1.0,
         );
     }
 

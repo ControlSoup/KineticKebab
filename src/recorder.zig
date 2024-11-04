@@ -1,6 +1,8 @@
 const std = @import("std");
 const sim = @import("sim.zig");
 
+const empty_string = "";
+
 pub const SimRecorder = struct{
     const Self = @This();
 
@@ -10,20 +12,22 @@ pub const SimRecorder = struct{
     pool_len: usize,
     pool_idx: usize = 0,
     contents: std.ArrayList(std.ArrayList(f64)),
+    is_deleted: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, file_path: []const u8, header: [][]const u8, pool_len: usize) !Self{
+        _ = std.fs.cwd().deleteFile(file_path) catch undefined;
         const file = try std.fs.cwd().createFile(file_path, .{});    
         defer file.close();
+
+        var buffer: []const u8 = empty_string[0..];
         
         // Write the header
         for (0..header.len - 1) |i|{
-            _ = try file.writer().writeAll(
-                try std.fmt.allocPrint(allocator, "{s},", .{header[i]})
-            );
+            buffer = try std.fmt.allocPrint(allocator, "{s}{s},", .{buffer, header[i]});
         }
 
         _ = try file.writer().writeAll(
-            try std.fmt.allocPrint(allocator, "{s}\n", .{header[header.len - 1]})
+            try std.fmt.allocPrint(allocator, "{s}{s}\n", .{buffer, header[header.len - 1]})
         );
 
         return Self{
@@ -43,39 +47,49 @@ pub const SimRecorder = struct{
     }
 
     pub fn write_row(self: *Self, row: []f64) !void{
+        if (self.is_deleted){
+            std.log.err("ERROR| Sim recorder has already compressed the data file and cannont write anymore", .{});
+            return sim.errors.InvalidInput;
+        }
+
         if ((self.pool_len - self.pool_idx) <= 0){
+
             const file = try std.fs.cwd().openFile(self.file_path, .{.mode = .read_write});    
             const stat = try file.stat();
             try file.seekTo(stat.size);
             defer file.close();
 
-            // Write the contents to the file  
+            if (row.len != self.header_len){
+                std.log.err(
+                    "Attempted to write row with length [{d}] when header has length [{d}]", .{row.len, self.header_len}
+                );
+                return sim.errors.MismatchedLength;
+            }
+
+            // Write the contets to the file  
+
+            var buffer: []const u8 = empty_string[0..];
+
             for (0..self.contents.items.len) |i|{
+
                 for (0..self.contents.items[0].items.len - 1) |j|{
-                    _ = try file.writer().writeAll(
-                        try std.fmt.allocPrint(self.allocator, "{d:.8},", 
-                        .{self.contents.items[i].items[j]}
-                    ));
+                    buffer = try std.fmt.allocPrint(self.allocator, "{s}{d:.8},", .{buffer, self.contents.items[i].items[j]});
                 }
-                _ = try file.writer().writeAll(
-                    try std.fmt.allocPrint(self.allocator, "{d:.8}\n", 
-                    .{self.contents.items[i].items[self.header_len - 1]}
-                ));
+                buffer = try std.fmt.allocPrint(self.allocator, "{s}{d:.8}\n",.{
+                    buffer, self.contents.items[i].items[self.header_len - 1]
+                });
             }
 
             // Write the final file and flush the pool
             for (0..row.len - 1) |i|{
-                _ = try file.writer().writeAll(
-                    try std.fmt.allocPrint(self.allocator, "{d:.8},", 
-                    .{row[i]}
-                ));
+                buffer = try std.fmt.allocPrint(self.allocator, "{s}{d:.8},", .{buffer, row[i]});
             }
             _ = try file.writer().writeAll(
-                try std.fmt.allocPrint(self.allocator, "{d:.8}\n", 
-                .{row[row.len - 1]}
+                try std.fmt.allocPrint(self.allocator, "{s}{d:.8}\n", .{buffer,row[row.len - 1]}
             ));
-            try self.init_pool();
+            try self._flush_pool();
             self.pool_idx = 0;
+
             return;
         } 
 
@@ -92,8 +106,9 @@ pub const SimRecorder = struct{
             defer file.close();
 
             // Write the contents to the file  
-            for (0..self.pool_idx - 1) |i|{
-                for (0..self.contents.items[0].items.len - 1) |j|{
+            for (0..self.pool_idx) |i|{
+                const content_len = self.contents.items[i].items.len;
+                for (0..content_len - 1) |j|{
                     _ = try file.writer().writeAll(
                         try std.fmt.allocPrint(self.allocator, "{d:.8},", 
                         .{self.contents.items[i].items[j]}
@@ -114,8 +129,13 @@ pub const SimRecorder = struct{
             self.contents.items[i].expandToCapacity();
         }
 
+        try self._flush_pool();
+    }
+
+    pub fn _flush_pool(self: *Self) !void{
         for (self.contents.items, 0..) |_, i|{
-            for (self.contents.items[0].items, 0..) |_, j|{
+            for (self.contents.items[i].items, 0..) |_, j|{
+                try std.testing.expect(self.header_len == self.contents.items[i].items.len);
                 self.contents.items[i].items[j] = -404;
             }
         }
@@ -133,7 +153,7 @@ pub const SimRecorder = struct{
     }
 
     pub fn compress(self: *Self) !void{
-        var file = try std.fs.cwd().openFile(self.file_path, .{.mode = .read_write});
+        var file = try std.fs.cwd().openFile(self.file_path, .{.mode = .read_only});
         const new_file = try std.fs.cwd().createFile(
             try std.fmt.allocPrint(self.allocator, "{s}.gzip", .{self.file_path}
         ), .{});    
@@ -143,6 +163,7 @@ pub const SimRecorder = struct{
 
         file.close();
         try std.fs.cwd().deleteFile(self.file_path);
+        self.is_deleted = true;
     }
 };
 
@@ -155,11 +176,12 @@ pub const SimRecorder = struct{
 //     const file_path = "test.csv";
 //     var header = [3][]const u8{"test1", "test2", "test3"};
 //     var temp1 = [3]f64{0.0,1.0,2.0};
-//     var a = try SimRecorder.create(allocator, file_path, header[0..], 4);
+//     var a = try SimRecorder.create(allocator, file_path, header[0..], 50);
 
-//     for (0..4) |i|{
-//         a.print_pool();
+//     for (0..777) |i|{
 //         temp1[0] = @floatFromInt(i);
+//         temp1[1] *= (temp1[1] + 2.0) * temp1[0];
+//         temp1[1] *= (temp1[1] + 10.0) * temp1[0];
 //         try a.write_row(temp1[0..]);
 //     }
 // }

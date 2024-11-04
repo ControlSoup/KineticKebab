@@ -27,6 +27,10 @@
             .url = "https://github.com/pwbh/ymlz/archive/refs/tags/0.1.0.tar.gz",
             .hash = "1220c6cd6fb624a6224679134fe8a48b58a2a31f4a1caeea21c1c0b304b6bba66463",
         },
+        .clap = .{
+            .url = "git+https://github.com/Hejsil/zig-clap#4ec4273a8a3b0ab02f1a7e49e971da8b5a71a034",
+            .hash = "1220f26d3185d87c40258791ff83a2e03b67e7a9a6973f7a790eabdee4f5e643e84b",
+        },
     },
     .paths = .{
         "build.zig",

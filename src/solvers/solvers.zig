@@ -39,7 +39,7 @@ pub const Integration = union(enum) {
     pub fn rk4(self: *const Self, dt: f64) !void {
 
         _ = switch (self.*){
-            .Volume => |impl| switch(impl){.Void => return},
+            .Volume => |impl| switch(impl){.Void => return, else => null},
             else => null, 
         };
 

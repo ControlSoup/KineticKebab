@@ -19,7 +19,14 @@ pub const FluidLookup = union(enum){
         else if (std.mem.eql(u8, lookup_str, NitrogenCoolProp)){
             return FluidLookup{.CoolProp = NitrogenCoolProp};
         }
+        else if (std.mem.eql(u8, lookup_str, HeliumCoolProp)){
+            return FluidLookup{.CoolProp = HeliumCoolProp};
+        }
+        else if (std.mem.eql(u8, lookup_str, AirCoolProp)){
+            return FluidLookup{.CoolProp = AirCoolProp};
+        }
         else {
+            std.log.err("ERROR| Invalid fluid: {s}", .{lookup_str});
             return sim.errors.InvalidInput;
         } 
     }
@@ -29,7 +36,9 @@ pub const NitrogenIdealGas = FluidLookup{
     .IdealGas = IdealGas.init(1040.0, 1.4, 0.02002)
 };
 
-pub const NitrogenCoolProp: []const u8 = "Nitogen";
+pub const NitrogenCoolProp: []const u8 = "Nitrogen";
+pub const HeliumCoolProp: []const u8 = "Helium";
+pub const AirCoolProp: []const u8 = "Air";
 
 
 // =============================================================================
@@ -49,20 +58,18 @@ pub const FluidState = struct{
     sp_entropy: f64 = 0.0,
     sos: f64 = 0.0,
 
+    pub fn init(medium: FluidLookup, press: f64, temp: f64) Self{
+        var new = FluidState{.medium = medium, .press = press, .temp = temp};
+        new.update_from_pt(press, temp);
+        return new;
+    }
+
     pub fn update_from_pt(self: *Self, press: f64, temp: f64) void{
 
         self.press = press;
         self.temp = temp;
 
         switch (self.medium){
-            .IdealGas => |impl| {
-                self.density = ideal_gas_density(impl.molar_mass, press, temp); 
-                self.sp_inenergy = ideal_gas_sp_inenergy(impl.cv, temp); 
-                self.sp_enthalpy = impl.enthalpy0 - ideal_gas_sp_enthalpy(self.sp_inenergy, press, self.density);
-                self.sp_entropy = impl.entropy0 - ideal_gas_sp_entropy(impl.cv, temp, impl.molar_mass, press);
-                self.sos = ideal_gas_sos(impl.gamma, press, self.density);
-                self.gamma = impl.gamma;
-            },
             .CoolProp => |impl| {
                 self.density = sim.coolprop.get_property("D", "P", self.press, "T", self.temp, impl);
                 self.sp_inenergy = sim.coolprop.get_property("U", "P", self.press, "T", self.temp, impl);
@@ -70,15 +77,27 @@ pub const FluidState = struct{
                 self.sp_entropy = sim.coolprop.get_property("S", "P", self.press, "T", self.temp, impl);
                 self.sos = sim.coolprop.get_property("A", "P", self.press, "T", self.temp, impl);
                 self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", self.press, "T", self.temp, impl);
-            }
-            
+            },
+            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{})
         }
     }
 
-    pub fn init(medium: FluidLookup, press: f64, temp: f64) Self{
-        var new = FluidState{.medium = medium, .press = press, .temp = temp};
-        new.update_from_pt(press, temp);
-        return new;
+    pub fn update_from_du(self: *Self, density: f64, sp_inenergy: f64) void{
+
+        self.density = density;
+        self.sp_inenergy = sp_inenergy;
+
+        switch (self.medium){
+            .CoolProp => |impl| {
+                self.press = sim.coolprop.get_property("P", "D", density, "U", sp_inenergy, impl);
+                self.temp = sim.coolprop.get_property("T", "D", density, "U", sp_inenergy, impl);
+                self.sp_enthalpy = sim.coolprop.get_property("H", "D", density, "U", sp_inenergy, impl);
+                self.sp_entropy = sim.coolprop.get_property("S", "D", density, "U", sp_inenergy, impl);
+                self.sos = sim.coolprop.get_property("A", "D", density, "U", sp_inenergy, impl);
+                self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "D", density, "U", sp_inenergy, impl);
+            },
+            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{})
+        }
     }
 
     pub fn _print(self: *Self) void{
