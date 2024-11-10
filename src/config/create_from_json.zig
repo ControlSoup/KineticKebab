@@ -127,12 +127,22 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
 
         // Most objects go from plug -> socket
         try switch (socket){
-            .Integration => |integration| switch (integration){
+            .Integratable => |integration| switch (integration){
                 .Motion1DOF => |impl| impl.add_connection(plug),
                 .Motion2DOF => |impl| impl.add_connection(plug),
                 .Volume => |impl| switch(connection_type){
                     .In => try impl.add_connection_in(plug),
                     .Out => try impl.add_connection_out(plug),
+                } 
+            },
+            .Void => |v| switch (v){
+                .Void => |_| switch(connection_type){
+                    .In => try v.add_connection_in(plug),
+                    .Out => try v.add_connection_out(plug),
+                },
+                inline else => {
+                    std.log.err("ERROR| Unexpected Volume [{s}], this is invalid and should not happen", .{v.name()});
+                    return errors.JsonFailedConnection;
                 } 
             },
             inline else => {

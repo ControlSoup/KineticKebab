@@ -12,9 +12,17 @@ pub const SimRecorder = struct{
     pool_len: usize,
     pool_idx: usize = 0,
     contents: std.ArrayList(std.ArrayList(f64)),
+    last_record_time: f64 = 0.0,
+    min_dt: f64 = 1e-3,
     is_deleted: bool = false,
 
-    pub fn init(allocator: std.mem.Allocator, file_path: []const u8, header: [][]const u8, pool_len: usize) !Self{
+    pub fn init(
+        allocator: std.mem.Allocator, 
+        file_path: []const u8, 
+        header: [][]const u8, 
+        pool_len: usize,
+        min_dt: f64,
+    ) !Self{
         _ = std.fs.cwd().deleteFile(file_path) catch undefined;
         const file = try std.fs.cwd().createFile(file_path, .{});    
         defer file.close();
@@ -36,17 +44,30 @@ pub const SimRecorder = struct{
             .header_len = header.len,
             .pool_len = pool_len - 1,
             .contents = try std.ArrayList(std.ArrayList(f64)).initCapacity(allocator, pool_len - 1),
+            .min_dt = min_dt
         };
     }
 
-    pub fn create(allocator: std.mem.Allocator, file_path: []const u8, header: [][]const u8, pool_len: usize) !*Self{
+    pub fn create(
+        allocator: std.mem.Allocator, 
+        file_path: []const u8, 
+        header: [][]const u8, 
+        pool_len: usize,
+        min_dt: f64
+    ) !*Self{
         const ptr = try allocator.create(Self);
-        ptr.* = try init(allocator, file_path, header, pool_len);
+        ptr.* = try init(allocator, file_path, header, pool_len, min_dt);
         try ptr.init_pool();
         return ptr;
     }
 
-    pub fn write_row(self: *Self, row: []f64) !void{
+    pub fn write_row(self: *Self, row: []f64, time: f64) !void{
+
+        if (time - self.last_record_time < self.min_dt){
+            return;
+        }
+        self.last_record_time = time;
+
         if (self.is_deleted){
             std.log.err("ERROR| Sim recorder has already compressed the data file and cannont write anymore", .{});
             return sim.errors.InvalidInput;
@@ -99,11 +120,14 @@ pub const SimRecorder = struct{
         self.pool_idx +=1;
     }
 
-    pub fn write_remaining(self: *Self) !void{
+    pub fn write_remaining(self: *Self, row: []f64) !void{
             const file = try std.fs.cwd().openFile(self.file_path, .{.mode = .read_write});    
             const stat = try file.stat();
             try file.seekTo(stat.size);
             defer file.close();
+
+            // Write whatever was passed in as the final peice of data, force it to go through
+            try self.write_row(row, self.last_record_time + self.min_dt*2);
 
             // Write the contents to the file  
             for (0..self.pool_idx) |i|{
@@ -155,7 +179,7 @@ pub const SimRecorder = struct{
     pub fn compress(self: *Self) !void{
         var file = try std.fs.cwd().openFile(self.file_path, .{.mode = .read_only});
         const new_file = try std.fs.cwd().createFile(
-            try std.fmt.allocPrint(self.allocator, "{s}.gzip", .{self.file_path}
+            try std.fmt.allocPrint(self.allocator, "{s}.gz", .{self.file_path}
         ), .{});    
         defer new_file.close();
 

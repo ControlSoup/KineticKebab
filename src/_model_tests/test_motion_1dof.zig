@@ -1,0 +1,60 @@
+const std = @import("std");
+const sim = @import("../sim.zig");
+
+test "Motion1DOF"{
+    // ========================================================================= 
+    // Allocation
+    // ========================================================================= 
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = arena.allocator();
+    defer arena.deinit();
+
+    // ========================================================================= 
+    // Json
+    // ========================================================================= 
+    var json = 
+    \\{
+    \\    "SimOptions":{
+    \\        "dt": 0.1,
+    \\        "min_dt": 1e-3,
+    \\        "max_dt": 1.0
+    \\    },
+    \\    "SimObjects":[
+    \\        {
+    \\            "object": "physics.motions.d1.Motion",
+    \\            "name": "TestSimpleOnly",
+    \\            "pos": 0.0,
+    \\            "mass": 1.0,
+    \\            "connections_in": ["TestSimple"]
+    \\        },
+    \\        {
+    \\            "object": "physics.forces.d1.Simple",
+    \\            "name": "TestSimple",
+    \\            "force": 1.0
+    \\        }    
+    \\    ]
+    \\}
+    ;
+
+    // ========================================================================= 
+    // Sim
+    // ========================================================================= 
+    const model = try sim.parse.json_sim(allocator, json[0..]);
+    const t = 10.0;
+    try model.step_duration(t);
+
+    // Test Simpe Force
+    try std.testing.expectApproxEqRel(
+        try model.get_save_value_by_name("TestSimpleOnly.net_force [N]"),
+        1.0,
+        1e-4,
+    );
+    try std.testing.expectApproxEqRel(
+        try model.get_save_value_by_name("TestSimpleOnly.pos [m]"),
+        std.math.pow(f64, t, 2) / 2,
+        1e-4,
+    );
+
+    try model.end();
+
+}

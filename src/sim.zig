@@ -23,10 +23,11 @@ pub const errors = parse.errors || error{
 pub const SimObject = union(enum) {
     const Self = @This();
 
+    Void: volumes.Volume,
     Restriction: restrictions.Restriction,
     Force1DOF: forces.d1.Force,
     Force2DOF: forces.d2.Force,
-    Integration: solvers.Integration,
+    Integratable: solvers.Integratable,
     SimInfo: *Sim,
 
     pub fn name(self: *const Self) []const u8 {
@@ -56,6 +57,7 @@ pub const SimObject = union(enum) {
                 save_array[0] = @as(f64, @floatFromInt(impl.steps));
                 save_array[1] = impl.dt;
                 save_array[2] = impl.time;
+                save_array[3] = impl.curr_rel_err;
             },
             inline else => |impl| impl.save_values(save_array),
         };
@@ -63,14 +65,8 @@ pub const SimObject = union(enum) {
 
     pub fn update(self: *const Self) !void {
         return switch (self.*) {
-            .Integration => |impl| impl.update(),
-            inline else => return,
-        };
-    }
-
-    pub fn next(self: *const Self, dt: f64) !void {
-        try switch (self.*) {
-            .Integration => |impl| impl.rk4(dt),
+            .Void => |impl| impl.update(),
+            .Integratable => |impl| impl.update(),
             inline else => return,
         };
     }
@@ -79,19 +75,26 @@ pub const SimObject = union(enum) {
 
 pub const Sim = struct {
     const Self = @This();
-    const sim_header = [3][]const u8{"steps [-]", "dt [s]", "time [s]"};
+    const sim_header = [_][]const u8{"steps [-]", "dt [s]", "time [s]", "integration_error [-]"};
     const sim_name = "sim";
 
     allocator: std.mem.Allocator,
     dt: f64,
-    time: f64 = 0,
+    next_dt: f64,
+    max_dt: f64,
+    min_dt: f64,
+    err_allow: f64,
+    curr_rel_err: f64 = 0.0,
+
+    time: f64 = 0.0,
     steps: usize = 0,
     sim_objs: std.ArrayList(SimObject),
     state_names: std.ArrayList([]const u8),
     state_vals: std.ArrayList(f64),
+    integrator: solvers.Integrator, 
     storage: ?*recorder.SimRecorder = null,
 
-    pub fn init(allocator: std.mem.Allocator, dt: f64) !Self {
+    pub fn init(allocator: std.mem.Allocator, dt: f64, max_dt: f64, min_dt: f64, err_allow: f64) !Self {
 
         if (dt <= 0.0) {
             std.log.err("ERROR| dt input must be >= 0", .{});
@@ -101,22 +104,30 @@ pub const Sim = struct {
         return Self{ 
             .allocator = allocator, 
             .dt = dt, 
+            .next_dt = dt, 
+            .max_dt = max_dt,
+            .min_dt = min_dt,
+            .err_allow = err_allow,
             .sim_objs = std.ArrayList(SimObject).init(allocator), 
             .state_vals = std.ArrayList(f64).init(allocator), 
-            .state_names = std.ArrayList([]const u8).init(allocator) 
+            .state_names = std.ArrayList([]const u8).init(allocator),
+            .integrator = solvers.Integrator.init(allocator)
         };
     }
 
-    pub fn create(allocator: std.mem.Allocator, dt: f64) !*Self {
+    pub fn create(allocator: std.mem.Allocator, dt: f64, max_dt: f64, min_dt: f64, err_allow: f64) !*Self {
         const ptr = try allocator.create(Self);
-        ptr.* = try init(allocator, dt);
+        ptr.* = try init(allocator, dt, max_dt, min_dt, err_allow);
         return ptr;
     }
 
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
         const new = try create(
             allocator,
-            try parse.field(allocator, f64, Self, "dt", contents)
+            try parse.field(allocator, f64, Self, "dt", contents),
+            try parse.optional_field(allocator, f64, Self, "max_dt", contents) orelse 1.0,
+            try parse.optional_field(allocator, f64, Self, "min_dt", contents) orelse 1e-4,
+            try parse.optional_field(allocator, f64, Self, "allowable_error", contents) orelse 1e-4,
         );
         return new;
     }
@@ -136,6 +147,13 @@ pub const Sim = struct {
         obj.save_values(
             self.state_vals.items[(self.state_vals.items.len - obj.save_len())..]
         );
+
+        _ = switch (obj){
+            .Integratable => |impl| {
+                try self.integrator.add_obj(impl);
+            },
+            else => undefined
+        };
     }
 
     pub fn create_obj(self: *Self, obj: SimObject) !void {
@@ -150,12 +168,11 @@ pub const Sim = struct {
     pub fn step(self: *Self) !void {
 
         var buff_loc: usize = 0;
-        for (self.sim_objs.items) |obj| {
-            // Go to the next step
-            try obj.next(self.dt);
+        for (self.sim_objs.items) |obj|{
             try obj.update();
 
             const len: usize = obj.save_len();
+
             const save_buffer = self.state_vals.items[buff_loc .. buff_loc + len];
 
             // Ensures I don't need to check every method for length
@@ -164,13 +181,25 @@ pub const Sim = struct {
             obj.save_values(save_buffer);
 
             buff_loc += len;
+
         }
 
-        if (self.storage != null) {
-            try self.storage.?.write_row(self.state_vals.items);
+        if (self.storage) |storage|{
+            try storage.write_row(self.state_vals.items, self.time);
         }
 
+        const rk45_results = try self.integrator.integrate(
+            self.next_dt, 
+            self.max_dt, 
+            self.min_dt, 
+            self.err_allow,
+            self.curr_rel_err
+        );
+
+        self.dt = rk45_results.accepted_dt;
         self.time += self.dt;
+        self.curr_rel_err = rk45_results.curr_rel_err;
+        self.next_dt = rk45_results.dt;
         self.steps += 1;
 
     }
@@ -182,8 +211,8 @@ pub const Sim = struct {
             return errors.InputLessThanZero;
         }
 
-        const steps: usize = @intFromFloat(duration / self.dt);
-        for (0..steps)|_|{
+        const start = self.time;
+        while((self.time - start) < duration){
             try self.step();
         }
 
@@ -191,7 +220,7 @@ pub const Sim = struct {
 
     pub fn end(self: *Self) !void{
         if (self.storage != null) {
-            try self.storage.?.write_remaining();
+            try self.storage.?.write_remaining(self.state_vals.items);
             try self.storage.?.compress();
         }
     }
@@ -221,17 +250,22 @@ pub const Sim = struct {
         return errors.SimObjectDoesNotExist;
     }
 
-    pub fn create_recorder(self: *Self, file_path: []const u8, pool_time: f64) !void{
-        _ = @as(usize, @intFromFloat(pool_time / self.dt));
-
-        self.storage = try recorder.SimRecorder.create(self.allocator, file_path, self.state_names.items, 1);
+    pub fn create_recorder(self: *Self, file_path: []const u8, pool_len: usize, min_dt: f64) !void{
+        self.storage = try recorder.SimRecorder.create(
+            self.allocator, 
+            file_path, 
+            self.state_names.items, 
+            pool_len,
+            min_dt
+        );
     }
 
     pub fn create_recorder_from_json(self: *Self, contents: std.json.Value) !void{
         try create_recorder(
             self, 
             try parse.string_field(self.allocator, Self, "path", contents), 
-            try parse.optional_field(self.allocator, f64, Self, "pool_window", contents) orelse 1.0,
+            try parse.optional_field(self.allocator, usize, Self, "pool_length", contents) orelse 25,
+            try parse.optional_field(self.allocator, f64, Self, "min_dt", contents) orelse 1e-3,
         );
     }
 
@@ -258,6 +292,5 @@ pub const Sim = struct {
 };
 
 test {
-    _ = @import("_model_tests/tests.zig");
     std.testing.refAllDecls(@This());
 }

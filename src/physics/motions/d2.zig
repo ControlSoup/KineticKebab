@@ -100,7 +100,7 @@ pub const Motion = struct {
 
     /// Creates a sim object interface, that holds a pointer to this object as integratable
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Integration = sim.solvers.Integration{.Motion2DOF = self}};
+        return sim.SimObject{.Integratable = sim.solvers.Integratable{.Motion2DOF = self}};
     }
 
     /// Computes the net force and resulting acceleration based on mass
@@ -141,7 +141,7 @@ pub const Motion = struct {
     }
 
     // =========================================================================
-    // Integration Methods
+    // Integratable Methods
     // =========================================================================
 
     pub fn set_state(self: *Self, integrated_state: [MAX_STATE_LEN]f64) void {

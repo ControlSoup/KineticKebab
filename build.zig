@@ -37,6 +37,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    so.root_module.addImport("clap", clap.module("clap"));
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -79,6 +80,7 @@ pub fn build(b: *std.Build) void {
     lib_unit_tests.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
     lib_unit_tests.linkSystemLibrary("CoolProp");
     lib_unit_tests.linkLibC();
+    lib_unit_tests.root_module.addImport("clap", clap.module("clap"));
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
 
@@ -92,6 +94,7 @@ pub fn build(b: *std.Build) void {
     exe_unit_tests.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
     exe_unit_tests.linkSystemLibrary("CoolProp");
     exe_unit_tests.linkLibC();
+    exe_unit_tests.root_module.addImport("clap", clap.module("clap"));
 
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

@@ -33,7 +33,7 @@ pub const Volume = union(enum) {
     }
 
     // =========================================================================
-    // Integration Methods
+    // Integratable Methods
     // =========================================================================
 
     pub fn get_state(self: *const Self) [MAX_STATE_LEN]f64 {
@@ -149,7 +149,7 @@ pub const Void = struct{
     }
 
     pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.Integration = sim.solvers.Integration{.Volume = Volume{.Void = self}}};
+        return sim.SimObject{.Void = Volume{.Void = self}};
     }
 
     pub fn as_volume(self: *Self) Volume{
@@ -268,7 +268,7 @@ pub const Static = struct{
 
 
     pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.Integration = sim.solvers.Integration{.Volume = Volume{.Static = self}}};
+        return sim.SimObject{.Integratable = sim.solvers.Integratable{.Volume = Volume{.Static = self}}};
     }
 
     pub fn update(self: *Self) !void{
@@ -327,7 +327,7 @@ pub const Static = struct{
     }
 
     // =========================================================================
-    // Integration Methods
+    // Integratable Methods
     // =========================================================================
 
     pub fn set_state(self: *Self, integrated_state: [MAX_STATE_LEN]f64) void {

@@ -1,0 +1,23 @@
+{
+  "SimOptions": {
+    "dt": 0.1,
+    "max_dt": 1.0,
+    "min_dt": 0.001
+  },
+  "SimObjects": [
+    {
+      "object": "physics.motions.d1.Motion",
+      "name": "TestSimpleOnly",
+      "pos": 0.0,
+      "mass": 1.0,
+      "connections_in": [
+        "TestSimple"
+      ]
+    },
+    {
+      "object": "physics.forces.d1.Simple",
+      "name": "TestSimple",
+      "force": 1.0
+    }
+  ]
+}
