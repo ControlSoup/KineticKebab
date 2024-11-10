@@ -127,7 +127,7 @@ pub const Sim = struct {
             try parse.field(allocator, f64, Self, "dt", contents),
             try parse.optional_field(allocator, f64, Self, "max_dt", contents) orelse 1.0,
             try parse.optional_field(allocator, f64, Self, "min_dt", contents) orelse 1e-4,
-            try parse.optional_field(allocator, f64, Self, "allowable_error", contents) orelse 1e-4,
+            try parse.optional_field(allocator, f64, Self, "allowable_error", contents) orelse 1e-6,
         );
         return new;
     }
