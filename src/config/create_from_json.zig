@@ -154,11 +154,11 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     }
 
     // See if recorder options are inlcuded
-    const recorder_options :?json.Value = optional_group_exists(parsed, "RecorderOptions");
-    if (recorder_options != null){
-        try new_sim_ptr.create_recorder_from_json(recorder_options.?);
+    const recorder_options: ?json.Value = optional_group_exists(parsed, "RecorderOptions");
+    if (recorder_options) |record|{
+        try new_sim_ptr.create_recorder_from_json(record);
     }
-
+    
     for (new_sim_ptr.sim_objs.items) |obj| try obj.update();
 
     // Give the world the sim

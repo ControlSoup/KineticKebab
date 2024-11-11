@@ -9,6 +9,7 @@ pub const restrictions = @import("fluids/restrictions.zig");
 pub const parse = @import("config/create_from_json.zig");
 pub const recorder = @import("recorder.zig");
 pub const coolprop = @import("3rdparty/coolprop.zig");
+const c_api = @import("c_api.zig");
 
 pub const errors = parse.errors || error{
     SimObjectDuplicate,

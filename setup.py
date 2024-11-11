@@ -13,6 +13,7 @@ res = setup(
     description="Zig Sim API",
     include_package_data=True,
     package_data={
-        NAME: ['kinetic_kebab']
+        NAME: ['kinetic_kebab'],
+        NAME: ['libkinetic_kebab.so'],
     },
 )
