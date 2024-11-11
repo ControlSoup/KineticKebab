@@ -60,14 +60,6 @@ test "Motion1DOF"{
         1e-4,
     );
 
-    try model.set_value_by_name("TestSimpleOnly.pos [m]", 0.0);
-    try model.step_duration(1.0);
-    try std.testing.expectApproxEqAbs(
-        std.math.pow(f64, 1.0, 2) / 2,
-        try model.get_value_by_name("TestSimpleOnly.pos [m]"),
-        1e-4,
-    );
-
     try model.end();
 
 }

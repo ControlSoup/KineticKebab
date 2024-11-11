@@ -72,6 +72,10 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             const new_obj_ptr = try sim.restrictions.Orifice.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
         }
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.restrictions.ConstantMdot))){
+            const new_obj_ptr = try sim.restrictions.ConstantMdot.from_json(allocator, contents);
+            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+        }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.motions.d3.Motion))){
             const new_obj_ptr = try sim.motions.d3.Motion.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());

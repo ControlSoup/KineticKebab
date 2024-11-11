@@ -6,6 +6,7 @@ pub const Restriction = union(enum){
     const Self = @This();
     
     Orifice: *Orifice,
+    ConstantMdot: *ConstantMdot,
 
     pub fn get_mdot(self: *const Self) !f64{
         switch (self.*){
@@ -75,12 +76,14 @@ pub const Restriction = union(enum){
 
     pub fn get_header(self: *const Self) []const []const u8{
         return switch (self.*){
+            .ConstantMdot => return ConstantMdot.header[0..],
             .Orifice => return Orifice.header[0..],
         };
     }
 
     pub fn save_len(self: *const Self) usize{
         return switch (self.*){
+            .ConstantMdot => return ConstantMdot.header.len,
             .Orifice => return Orifice.header.len,
         };
     }
@@ -220,6 +223,98 @@ pub const Orifice = struct{
     }
 
 
+};
+
+pub const ConstantMdot = struct{
+    const Self = @This();
+    pub const header = [_][]const u8{"mdot [kg/s]", "dp [Pa]", "is_choked [-]"};
+
+    name: []const u8,
+    mdot: f64,
+
+    dp: f64 = 0.0,
+    is_choked: bool = false,
+    connection_in: ?volumes.Volume = null,
+    connection_out: ?volumes.Volume = null,
+
+    pub fn init(name: []const u8, mdot: f64) Self{
+        return Self{.name = name, .mdot = mdot,};
+    }
+
+    pub fn create(allocator: std.mem.Allocator, name: []const u8, mdot: f64) !*Self{
+        const ptr = try allocator.create(Self);
+        ptr.* = init(name, mdot); 
+        return ptr;
+    }
+
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
+        return create(
+            allocator, 
+            try sim.parse.string_field(allocator, Self, "name", contents),
+            try sim.parse.field(allocator, f64, Self, "mdot", contents)
+        );
+    }
+
+    pub fn get_mdot(self: *Self) !f64{
+
+        try self._check_connections();
+
+        const state_in = self.connection_in.?.get_intrinsic();
+        const state_out = self.connection_out.?.get_intrinsic();
+
+        self.dp = state_in.press - state_out.press;
+
+        self.is_choked = ideal_is_choked(state_in.press, state_out.press, state_in.gamma);
+
+        return self.mdot;
+    }
+
+    pub fn get_hdot(self: *Self) !f64{
+
+        if (self.mdot == 0){
+            return 0.0;
+        }
+
+        try self._check_connections();
+
+        if (self.mdot > 0.0){
+            return self.connection_in.?.get_intrinsic().sp_enthalpy;
+        } else{
+            return self.connection_out.?.get_intrinsic().sp_enthalpy;
+        }
+    }
+
+    pub fn save_vals(self: *const Self, save_array: []f64) void{
+        save_array[0] = self.mdot;
+        save_array[1] = self.dp;
+        save_array[2] = if (self.is_choked) 1.0 else 0.0;
+    }
+
+    pub fn set_vals(self: *const Self, save_array: []f64) void{
+        save_array[0] = self.mdot;
+    }
+
+    // =========================================================================
+    //  Sim Object Methods
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{.Restriction = Restriction{.ConstantMdot = self}};
+    }
+
+    pub fn _check_connections(self: *Self) !void{
+
+        if (self.connection_in == null){
+            std.log.err("ERROR| Object[{s}] is missing a connection_in", .{self.name});
+            return sim.errors.AlreadyConnected; 
+        }
+
+
+        if (self.connection_out == null){
+            std.log.err("ERROR| Object[{s}] is missing a connection_out", .{self.name});
+            return sim.errors.AlreadyConnected; 
+        }
+    }
 };
 
 // =============================================================================

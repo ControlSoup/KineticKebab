@@ -33,6 +33,11 @@ test "TransientOrificeFlow"{
     \\            "mdot_method": "IdealCompressible"
     \\        },
     \\        {
+    \\            "object": "fluids.restrictions.ConstantMdot",
+    \\            "name": "TestConstantMdot",
+    \\            "mdot": 1.0
+    \\        },
+    \\        {
     \\            "object": "fluids.restrictions.Orifice",
     \\            "name": "TestUnchokedOrifice",
     \\            "cda": 1.0,
@@ -78,6 +83,9 @@ test "TransientOrificeFlow"{
     
     const uch_ds: sim.SimObject = try model.get_sim_object_by_name("DownstreamUnchokedTest");
     const uch_ds_state = uch_ds.Void.get_intrinsic();
+
+    // Fixed Mdot
+    try std.testing.expect(try model.get_value_by_name("TestConstantMdot.mdot [kg/s]") == 1.0);
 
     // Choked
     const ch_mdot = sim.restrictions.ideal_choked_mdot(
