@@ -87,9 +87,15 @@ pub const Volume = union(enum) {
         };
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void {
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
         switch (self.*){
-            inline else => |impl| impl.save_values(save_array),
+            inline else => |impl| impl.save_vals(save_array),
+        }
+    }
+
+    pub fn set_vals(self: *const Self, save_array: []f64) void {
+        switch (self.*){
+            inline else => |impl| impl.set_vals(save_array),
         }
     }
 };
@@ -165,9 +171,14 @@ pub const Void = struct{
         }
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void {
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
         save_array[0] = self.intrinsic.press;
         save_array[1] = self.intrinsic.temp;
+    }
+
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.intrinsic.press = save_array[0] ;
+        self.intrinsic.temp = save_array[1] ;
     }
 };
 
@@ -312,18 +323,18 @@ pub const Static = struct{
         self.intrinsic.update_from_du(self.mass / self.volume, self.inenergy / self.mass);
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void {
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
         save_array[0] = self.intrinsic.press;
         save_array[1] = self.intrinsic.temp;
         save_array[2] = self.mass;
         save_array[3] = self.volume;
-        save_array[4] = self.inenergy;
-        save_array[5] = self.mdot_in;
-        save_array[6] = self.mdot_out;
-        save_array[7] = self.net_mdot;
-        save_array[8] = self.hdot_in;
-        save_array[9] = self.hdot_out;
-        save_array[10] = self.net_inenergy_dot;
+    }
+    
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.intrinsic.press = save_array[0] ;
+        self.intrinsic.temp = save_array[1] ;
+        self.mass = save_array[2] ;
+        self.volume = save_array[3] ;
     }
 
     // =========================================================================

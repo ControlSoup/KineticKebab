@@ -45,9 +45,15 @@ pub const Force = union(enum) {
         };
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void {
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
         switch (self.*){
-            inline else => |impl| impl.save_values(save_array),
+            inline else => |impl| impl.save_vals(save_array),
+        }
+    }
+
+    pub fn set_vals(self: *const Self, save_array: []f64) void {
+        switch (self.*){
+            inline else => |impl| impl.set_vals(save_array),
         }
     }
 
@@ -104,10 +110,16 @@ pub const Spring = struct {
         return self.force;
     }
 
-    pub fn save_values(self: *Self, save_array: []f64) void {
+    pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.spring_constant;
         save_array[1] = self.preload;
         save_array[2] = self.force;
+    }
+    
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.spring_constant = save_array[0] ;
+        self.preload = save_array[1] ;
+        self.force = save_array[2] ;
     }
 
     // =========================================================================
@@ -149,8 +161,12 @@ pub const Simple = struct {
     // Force Methods
     // =========================================================================
 
-    pub fn save_values(self: *Self, save_array: []f64) void {
+    pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.force;
+    }
+
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.force = save_array[0] ;
     }
 
     // =========================================================================

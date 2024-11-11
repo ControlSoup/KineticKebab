@@ -106,7 +106,7 @@ pub fn main() !void {
 
 test {
     _ = @import("_model_tests/test_motion_1dof.zig");
-    _ = @import("_model_tests/test_motion_2dof.zig");
+    _ = @import("_model_tests/test_motion_3dof.zig");
     _ = @import("_model_tests/test_transient_orifice.zig");
     _ = @import("_model_tests/test_blowdown.zig");
     std.testing.refAllDecls(@This());

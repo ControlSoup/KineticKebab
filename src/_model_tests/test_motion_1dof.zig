@@ -45,13 +45,26 @@ test "Motion1DOF"{
 
     // Test Simpe Force
     try std.testing.expectApproxEqRel(
-        try model.get_save_value_by_name("TestSimpleOnly.net_force [N]"),
+        t,
+        try model.get_value_by_name("sim.time [s]"),
+        1e-6,
+    );
+    try std.testing.expectApproxEqRel(
+        try model.get_value_by_name("TestSimpleOnly.net_force [N]"),
         1.0,
         1e-4,
     );
     try std.testing.expectApproxEqRel(
-        try model.get_save_value_by_name("TestSimpleOnly.pos [m]"),
+        try model.get_value_by_name("TestSimpleOnly.pos [m]"),
         std.math.pow(f64, t, 2) / 2,
+        1e-4,
+    );
+
+    try model.set_value_by_name("TestSimpleOnly.pos [m]", 0.0);
+    try model.step_duration(1.0);
+    try std.testing.expectApproxEqAbs(
+        std.math.pow(f64, 1.0, 2) / 2,
+        try model.get_value_by_name("TestSimpleOnly.pos [m]"),
         1e-4,
     );
 

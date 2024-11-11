@@ -61,9 +61,15 @@ pub const Restriction = union(enum){
         };
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void{
+    pub fn save_vals(self: *const Self, save_array: []f64) void{
         switch (self.*){
-            inline else => |impl| impl.save_values(save_array),
+            inline else => |impl| impl.save_vals(save_array),
+        }
+    }
+
+    pub fn set_vals(self: *const Self, save_array: []f64) void{
+        switch (self.*){
+            inline else => |impl| impl.set_vals(save_array),
         }
     }
 
@@ -180,11 +186,15 @@ pub const Orifice = struct{
         }
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void{
+    pub fn save_vals(self: *const Self, save_array: []f64) void{
         save_array[0] = self.cda;
         save_array[1] = self.mdot;
         save_array[2] = self.dp;
         save_array[3] = if (self.is_choked) 1.0 else 0.0;
+    }
+
+    pub fn set_vals(self: *Self, save_array: []f64) void{
+        self.cda = save_array[0] ;
     }
 
     // =========================================================================

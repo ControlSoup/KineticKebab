@@ -31,7 +31,7 @@ pub const Integrator = struct{
         try self.curr_states.append([1]f64{-404.0} ** MAX_STATE_LEN);
     } 
 
-    pub fn integrate(self: *Self, dt: f64, max_dt: f64, min_dt: f64, err_allow: f64, last_err: f64) !RESULT{
+    pub fn integrate(self: *Self, dt: f64, max_dt: f64, min_dt: f64, err_allow: f64, last_err: f64, enforce_dt: bool) !RESULT{
         
         if (self.obj_list.items.len == 0){
             return RESULT{.dt = dt, .accepted_dt = dt, .curr_rel_err = 0.0};
@@ -64,7 +64,7 @@ pub const Integrator = struct{
                 self.curr_states.items[i] = new_state;
             }
 
-            if (curr_max_err <= err_allow or (new_dt == max_dt) or (new_dt == min_dt)){
+            if (curr_max_err <= err_allow or (new_dt == max_dt) or (new_dt == min_dt) or enforce_dt){
                 step_accepted = true; 
                 accepted_dt = new_dt;
             }
@@ -111,7 +111,7 @@ pub fn new_t_step(tol_rel: f64, rel_now: f64, rel_last: f64, order: f64, old_dt:
 pub const Integratable = union(enum) {
     const Self = @This();
 
-    Motion2DOF: *sim.motions.d2.Motion,
+    Motion3DOF: *sim.motions.d3.Motion,
     Motion1DOF: *sim.motions.d1.Motion,
     Volume: sim.volumes.Volume,
 
@@ -259,21 +259,27 @@ pub const Integratable = union(enum) {
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
             .Motion1DOF => return sim.motions.d1.Motion.header[0..],
-            .Motion2DOF => return sim.motions.d2.Motion.header[0..],
+            .Motion3DOF => return sim.motions.d3.Motion.header[0..],
             .Volume => |impl| return impl.get_header()
         };
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void {
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
         return switch (self.*) {
-            inline else => |impl| return impl.save_values(save_array),
+            inline else => |impl| return impl.save_vals(save_array),
+        };
+    }
+
+    pub fn set_vals(self: *const Self, save_array: []f64) void {
+        return switch (self.*) {
+            inline else => |impl| return impl.set_vals(save_array),
         };
     }
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
             .Motion1DOF => return sim.motions.d1.Motion.header.len,
-            .Motion2DOF => return sim.motions.d2.Motion.header.len,
+            .Motion3DOF => return sim.motions.d3.Motion.header.len,
             .Volume => |impl| return impl.save_len()
         };
     }

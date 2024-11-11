@@ -72,16 +72,16 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             const new_obj_ptr = try sim.restrictions.Orifice.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
         }
-        else if (std.mem.eql(u8, obj_name, @typeName(sim.motions.d2.Motion))){
-            const new_obj_ptr = try sim.motions.d2.Motion.from_json(allocator, contents);
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.motions.d3.Motion))){
+            const new_obj_ptr = try sim.motions.d3.Motion.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
         }
-        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d2.Simple))){
-            const new_obj_ptr = try sim.forces.d2.Simple.from_json(allocator, contents);
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d3.Simple))){
+            const new_obj_ptr = try sim.forces.d3.Simple.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
         }
-        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d2.BodySimple))){
-            const new_obj_ptr = try sim.forces.d2.BodySimple.from_json(allocator, contents);
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d3.BodySimple))){
+            const new_obj_ptr = try sim.forces.d3.BodySimple.from_json(allocator, contents);
             try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
         }
         else{
@@ -129,7 +129,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         try switch (socket){
             .Integratable => |integration| switch (integration){
                 .Motion1DOF => |impl| impl.add_connection(plug),
-                .Motion2DOF => |impl| impl.add_connection(plug),
+                .Motion3DOF => |impl| impl.add_connection(plug),
                 .Volume => |impl| switch(connection_type){
                     .In => try impl.add_connection_in(plug),
                     .Out => try impl.add_connection_out(plug),

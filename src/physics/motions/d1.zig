@@ -81,12 +81,20 @@ pub const Motion = struct {
         self.accel = self.net_force / self.mass;
     }
 
-    pub fn save_values(self: *Self, save_array: []f64) void {
+    pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.pos;
         save_array[1] = self.vel;
         save_array[2] = self.accel;
         save_array[3] = self.net_force;
         save_array[4] = self.mass;
+    }
+
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.pos = save_array[0] ;
+        self.vel = save_array[1] ;
+        self.accel = save_array[2] ;
+        self.net_force = save_array[3] ;
+        self.mass = save_array[4] ;
     }
 
     // =========================================================================

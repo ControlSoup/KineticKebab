@@ -17,7 +17,8 @@ pub const errors = parse.errors || error{
     InvalidInput,
     AlreadyConnected,
     MissingConnection,
-    MismatchedLength 
+    MismatchedLength,
+    CannotSet
 };
 
 pub const SimObject = union(enum) {
@@ -26,7 +27,7 @@ pub const SimObject = union(enum) {
     Void: volumes.Volume,
     Restriction: restrictions.Restriction,
     Force1DOF: forces.d1.Force,
-    Force2DOF: forces.d2.Force,
+    Force3DOF: forces.d3.Force,
     Integratable: solvers.Integratable,
     SimInfo: *Sim,
 
@@ -51,7 +52,7 @@ pub const SimObject = union(enum) {
         };
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void {
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
         return switch (self.*) {
             .SimInfo => |impl| {
                 save_array[0] = @as(f64, @floatFromInt(impl.steps));
@@ -59,9 +60,19 @@ pub const SimObject = union(enum) {
                 save_array[2] = impl.time;
                 save_array[3] = impl.curr_rel_err;
             },
-            inline else => |impl| impl.save_values(save_array),
+            inline else => |impl| impl.save_vals(save_array),
         };
     }
+
+    pub fn set_vals(self: *const Self, save_array: []f64) !void {
+        return switch (self.*) {
+            .SimInfo => |impl| {
+                impl.time = save_array[2];
+            },
+            inline else => |impl| impl.set_vals(save_array),
+        };
+    }
+
 
     pub fn update(self: *const Self) !void {
         return switch (self.*) {
@@ -85,6 +96,7 @@ pub const Sim = struct {
     min_dt: f64,
     err_allow: f64,
     curr_rel_err: f64 = 0.0,
+    enforce_current_dt: bool = false,
 
     time: f64 = 0.0,
     steps: usize = 0,
@@ -93,6 +105,7 @@ pub const Sim = struct {
     state_vals: std.ArrayList(f64),
     integrator: solvers.Integrator, 
     storage: ?*recorder.SimRecorder = null,
+    updated_vals: bool = false,
 
     pub fn init(allocator: std.mem.Allocator, dt: f64, max_dt: f64, min_dt: f64, err_allow: f64) !Self {
 
@@ -144,7 +157,7 @@ pub const Sim = struct {
             try self.state_names.append(name);
             try self.state_vals.append(-404.0);
         }
-        obj.save_values(
+        obj.save_vals(
             self.state_vals.items[(self.state_vals.items.len - obj.save_len())..]
         );
 
@@ -167,25 +180,9 @@ pub const Sim = struct {
 
     pub fn step(self: *Self) !void {
 
-        var buff_loc: usize = 0;
-        for (self.sim_objs.items) |obj|{
-            try obj.update();
-
-            const len: usize = obj.save_len();
-
-            const save_buffer = self.state_vals.items[buff_loc .. buff_loc + len];
-
-            // Ensures I don't need to check every method for length
-            try std.testing.expect(save_buffer.len == obj.save_len());
-
-            obj.save_values(save_buffer);
-
-            buff_loc += len;
-
-        }
-
-        if (self.storage) |storage|{
-            try storage.write_row(self.state_vals.items, self.time);
+        if (self.updated_vals){
+            try self._set_vals();
+            self.updated_vals = false;
         }
 
         const rk45_results = try self.integrator.integrate(
@@ -193,7 +190,8 @@ pub const Sim = struct {
             self.max_dt, 
             self.min_dt, 
             self.err_allow,
-            self.curr_rel_err
+            self.curr_rel_err,
+            self.enforce_current_dt 
         );
 
         self.dt = rk45_results.accepted_dt;
@@ -202,6 +200,7 @@ pub const Sim = struct {
         self.next_dt = rk45_results.dt;
         self.steps += 1;
 
+        try self._save_vals();
     }
 
     pub fn step_duration(self: *Self, duration: f64) !void{
@@ -214,6 +213,18 @@ pub const Sim = struct {
         const start = self.time;
         while((self.time - start) < duration){
             try self.step();
+
+            if (self.next_dt + (self.time - start) > duration){
+                const stash_dt = self.next_dt;
+                self.next_dt = duration - (self.time - start);  
+
+                if (self.next_dt < 1e-10) break;
+                self.enforce_current_dt = true;
+                try self.step();
+                self.next_dt = stash_dt;
+                self.enforce_current_dt = false;
+            }
+
         }
 
     }
@@ -225,7 +236,7 @@ pub const Sim = struct {
         }
     }
 
-    pub fn get_save_index(self: *Self, name: [] const u8) !usize{
+    pub fn get_index(self: *Self, name: [] const u8) !usize{
     
         for (self.state_names.items, 0..) |obj, i|{
             if (std.mem.eql(u8, obj, name)) return i;
@@ -235,8 +246,9 @@ pub const Sim = struct {
         return errors.SimObjectDoesNotExist;
     }
 
-    pub fn get_save_value_by_name(self: *Self, name: []const u8) !f64{
-        const index = try self.get_save_index(name);
+    pub fn get_value_by_name(self: *Self, name: []const u8) !f64{
+        // You usually have <50 items in a sim, so linear serach is fine
+        const index = try self.get_index(name);
         return self.state_vals.items[index];
     }
 
@@ -250,20 +262,25 @@ pub const Sim = struct {
         return errors.SimObjectDoesNotExist;
     }
 
-    pub fn create_recorder(self: *Self, file_path: []const u8, pool_len: usize, min_dt: f64) !void{
-        self.storage = try recorder.SimRecorder.create(
-            self.allocator, 
-            file_path, 
-            self.state_names.items, 
-            pool_len,
-            min_dt
-        );
+    pub fn set_value(self: *Self, idx: usize, value: f64) !void{
+        if (idx < 0 or idx > self.state_vals.items.len - 1){
+            std.log.err("ERROR| When setting a value, indx must be >= 0 and less then {d}", .{self.state_vals.items.len - 1}); 
+            return errors.InvalidInput;
+        }
+        self.state_vals.items[idx] = value;
+        self.updated_vals = true;
+    }
+
+    pub fn set_value_by_name(self: *Self, name: []const u8, value: f64) !void{
+        const idx = try self.get_index(name); 
+        try self.set_value(idx, value);
     }
 
     pub fn create_recorder_from_json(self: *Self, contents: std.json.Value) !void{
-        try create_recorder(
-            self, 
+        self.storage = try recorder.SimRecorder.create(
+            self.allocator, 
             try parse.string_field(self.allocator, Self, "path", contents), 
+            self.state_names.items,
             try parse.optional_field(self.allocator, usize, Self, "pool_length", contents) orelse 25,
             try parse.optional_field(self.allocator, f64, Self, "min_dt", contents) orelse 1e-3,
         );
@@ -281,7 +298,7 @@ pub const Sim = struct {
         }
     }
 
-    pub fn _name_exists(self: *Self, name1: []const u8) !void{
+    fn _name_exists(self: *Self, name1: []const u8) !void{
         for (self.state_names.items) |name2|{
             if (std.mem.eql(u8, name1, name2)) {
                 std.log.err("ERROR| Object Name [{s}] already exists, please remove duplicate", .{name1});
@@ -289,6 +306,49 @@ pub const Sim = struct {
             }
         }            
     }
+
+    fn _save_vals(self: *Self) !void{
+        var buff_loc: usize = 0;
+        for (self.sim_objs.items) |obj|{
+            try obj.update();
+
+            const len: usize = obj.save_len();
+
+            const save_buffer = self.state_vals.items[buff_loc .. buff_loc + len];
+
+            // Ensures I don't need to check every method for length
+            try std.testing.expect(save_buffer.len == obj.save_len());
+
+            obj.save_vals(save_buffer);
+
+            buff_loc += len;
+
+        }
+
+        if (self.storage) |storage|{
+            try storage.write_row(self.state_vals.items, self.time);
+        }
+    }
+
+    fn _set_vals(self: *Self) !void{
+        var buff_loc: usize = 0;
+        for (self.sim_objs.items) |obj|{
+
+            const len: usize = obj.save_len();
+
+            const save_buffer = self.state_vals.items[buff_loc .. buff_loc + len];
+
+            try obj.set_vals(save_buffer[0..]);
+
+            // Ensures I don't need to check every method for length
+            try std.testing.expect(save_buffer.len == obj.save_len());
+
+            try obj.update();
+
+            buff_loc += len;
+        }
+    }
+
 };
 
 test {

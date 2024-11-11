@@ -37,7 +37,7 @@ pub const Motion = struct {
     theta_dot: f64 = 0.0,
     theta_ddot: f64 = 0.0,
     net_moment: f64 = 0.0,
-    connections: std.ArrayList(sim.forces.d2.Force),
+    connections: std.ArrayList(sim.forces.d3.Force),
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -54,7 +54,7 @@ pub const Motion = struct {
             .pos = sim.math.Vec2.init(pos_x, pos_y),
             .theta = theta,
             .inertia = inertia,
-            .connections = std.ArrayList(sim.forces.d2.Force).init(allocator)
+            .connections = std.ArrayList(sim.forces.d3.Force).init(allocator)
         };
     }
 
@@ -89,8 +89,8 @@ pub const Motion = struct {
     }
 
     pub fn add_connection(self: *Self, sim_obj: sim.SimObject) !void {
-        try self.connections.append(sim_obj.Force2DOF);
-        try sim_obj.Force2DOF.add_connection(self);
+        try self.connections.append(sim_obj.Force3DOF);
+        try sim_obj.Force3DOF.add_connection(self);
     }
 
 
@@ -100,7 +100,7 @@ pub const Motion = struct {
 
     /// Creates a sim object interface, that holds a pointer to this object as integratable
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Integratable = sim.solvers.Integratable{.Motion2DOF = self}};
+        return sim.SimObject{.Integratable = sim.solvers.Integratable{.Motion3DOF = self}};
     }
 
     /// Computes the net force and resulting acceleration based on mass
@@ -123,7 +123,7 @@ pub const Motion = struct {
         self.theta_ddot = self.net_moment / self.inertia;
     }
 
-    pub fn save_values(self: *Self, save_array: []f64) void {
+    pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.pos.i;
         save_array[1] = self.vel.i;
         save_array[2] = self.accel.i;
@@ -138,6 +138,23 @@ pub const Motion = struct {
         save_array[11] = self.theta_ddot;
         save_array[12] = self.net_moment;
         save_array[13] = self.inertia;
+    }
+    
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.pos.i = save_array[0] ;
+        self.vel.i = save_array[1] ;
+        self.accel.i = save_array[2] ;
+        self.net_force.i = save_array[3] ;
+        self.pos.j = save_array[4] ;
+        self.vel.j = save_array[5] ;
+        self.accel.j = save_array[6] ;
+        self.net_force.j = save_array[7] ;
+        self.mass = save_array[8] ;
+        self.theta = save_array[9] ;
+        self.theta_dot = save_array[10] ;
+        self.theta_ddot = save_array[11] ;
+        self.net_moment = save_array[12] ;
+        self.inertia = save_array[13] ;
     }
 
     // =========================================================================

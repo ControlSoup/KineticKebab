@@ -18,11 +18,6 @@ test "Blowdown"{
     \\    "SimOptions":{
     \\        "dt": 0.50 
     \\    },
-    \\    "RecorderOptions":{
-    \\        "path": "blowdown.csv",
-    \\        "pool_length": 10.0,
-    \\        "min_dt": 1e-3
-    \\    },
     \\    "SimObjects":[
     \\        {
     \\            "object": "fluids.volumes.Static",

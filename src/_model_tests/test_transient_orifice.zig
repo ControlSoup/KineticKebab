@@ -81,26 +81,26 @@ test "TransientOrificeFlow"{
 
     // Choked
     const ch_mdot = sim.restrictions.ideal_choked_mdot(
-        try model.get_save_value_by_name("TestChokedOrifice.cda [m^2]"),
+        try model.get_value_by_name("TestChokedOrifice.cda [m^2]"),
         us_state.density,
         us_state.press,
         us_state.gamma
     );
-    const actual_ch_mdot = try model.get_save_value_by_name("TestChokedOrifice.mdot [kg/s]");
-    try std.testing.expect(try model.get_save_value_by_name("TestChokedOrifice.is_choked [-]") == 1.0);
+    const actual_ch_mdot = try model.get_value_by_name("TestChokedOrifice.mdot [kg/s]");
+    try std.testing.expect(try model.get_value_by_name("TestChokedOrifice.is_choked [-]") == 1.0);
     try std.testing.expectApproxEqRel(ch_mdot, actual_ch_mdot, 1e-4);
 
     // UnChoked
     const uch_mdot = sim.restrictions.ideal_unchoked_mdot(
-        try model.get_save_value_by_name("TestUnchokedOrifice.cda [m^2]"),
+        try model.get_value_by_name("TestUnchokedOrifice.cda [m^2]"),
         us_state.density,
         us_state.press,
         uch_ds_state.press,
         us_state.gamma
     );
-    const actual_unch_mdot = try model.get_save_value_by_name("TestUnchokedOrifice.mdot [kg/s]");
+    const actual_unch_mdot = try model.get_value_by_name("TestUnchokedOrifice.mdot [kg/s]");
 
-    try std.testing.expect(try model.get_save_value_by_name("TestUnchokedOrifice.is_choked [-]") == 0.0);
+    try std.testing.expect(try model.get_value_by_name("TestUnchokedOrifice.is_choked [-]") == 0.0);
     try std.testing.expectApproxEqRel(uch_mdot, actual_unch_mdot, 1e-4);
 
     try model.end();

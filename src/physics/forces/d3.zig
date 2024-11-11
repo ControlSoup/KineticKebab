@@ -14,7 +14,7 @@ pub const Force = union(enum) {
         };
     }
 
-    pub fn add_connection(self: *const Self, connection: *sim.motions.d2.Motion) !void {
+    pub fn add_connection(self: *const Self, connection: *sim.motions.d3.Motion) !void {
         switch (self.*) {
             .Simple => |_| return,
             inline else => |f| {
@@ -46,9 +46,15 @@ pub const Force = union(enum) {
         };
     }
 
-    pub fn save_values(self: *const Self, save_array: []f64) void {
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
         switch (self.*){
-            inline else => |impl| impl.save_values(save_array),
+            inline else => |impl| impl.save_vals(save_array),
+        }
+    }
+
+    pub fn set_vals(self: *const Self, save_array: []f64) void {
+        switch (self.*){
+            inline else => |impl| impl.set_vals(save_array),
         }
     }
 
@@ -58,6 +64,7 @@ pub const Force = union(enum) {
             .BodySimple => return BodySimple.header.len
         };
     }
+
 
 };
 
@@ -101,10 +108,16 @@ pub const Simple = struct {
     // Force Methods
     // =========================================================================
 
-    pub fn save_values(self: *Self, save_array: []f64) void {
+    pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.x;
         save_array[1] = self.y;
         save_array[2] = self.moment;
+    }
+    
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.x = save_array[0] ;
+        self.y = save_array[1] ;
+        self.moment = save_array[2] ;
     }
 
     // =========================================================================
@@ -112,7 +125,7 @@ pub const Simple = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Force2DOF = Force{.Simple = self }};
+        return sim.SimObject{ .Force3DOF = Force{.Simple = self }};
     }
 
 };
@@ -134,7 +147,7 @@ pub const BodySimple = struct {
     force: sim.math.Vec2,
     global_force: sim.math.Vec2 = sim.math.Vec2.init_zeros(),
     moment: f64 = 0.0,
-    cg_ptr: ?*sim.motions.d2.Motion = null,
+    cg_ptr: ?*sim.motions.d3.Motion = null,
 
 
     pub fn init(name:[] const u8, loc_cg_x: f64, loc_cg_y: f64, x: f64, y: f64) Self{
@@ -166,7 +179,7 @@ pub const BodySimple = struct {
     // Force Methods
     // =========================================================================
 
-    pub fn save_values(self: *Self, save_array: []f64) void {
+    pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.loc.i;
         save_array[1] = self.loc.j;
         save_array[2] = self.force.i;
@@ -174,6 +187,16 @@ pub const BodySimple = struct {
         save_array[4] = self.global_force.i;
         save_array[5] = self.global_force.j;
         save_array[6] = self.moment;
+    }
+
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.loc.i = save_array[0] ;
+        self.loc.j = save_array[1] ;
+        self.force.i = save_array[2] ;
+        self.force.j = save_array[3] ;
+        self.global_force.i = save_array[4] ;
+        self.global_force.j = save_array[5] ;
+        self.moment = save_array[6] ;
     }
 
     pub fn get_force_moment_arr(self: *Self) ![3]f64{
@@ -196,7 +219,7 @@ pub const BodySimple = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Force2DOF = Force{.BodySimple = self }};
+        return sim.SimObject{ .Force3DOF = Force{.BodySimple = self }};
     }
 
 };
