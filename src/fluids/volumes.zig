@@ -162,15 +162,6 @@ pub const Void = struct{
         return Volume{.Void = self};
     }
 
-    pub fn update(self: *Self) !void{
-        for (self.connections_in.items) |c|{
-           _ = try c.get_mdot(); 
-        }
-        for (self.connections_out.items) |c|{
-           _ = try c.get_mdot(); 
-        }
-    }
-
     pub fn save_vals(self: *const Self, save_array: []f64) void {
         save_array[0] = self.intrinsic.press;
         save_array[1] = self.intrinsic.temp;
@@ -273,14 +264,25 @@ pub const Static = struct{
 
     }
 
+    // =========================================================================
+    // Interfaces
+    // =========================================================================
+
     pub fn as_volume(self: *Self) Volume{
         return Volume{.Static = self};
     }
 
-
     pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.Integratable = sim.solvers.Integratable{.Volume = Volume{.Static = self}}};
+        return sim.SimObject{.Static = self};
     }
+
+    pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
+        return sim.interfaces.Updatable{.Static = self};
+    }
+
+    // =========================================================================
+    // Updateable Methods
+    // =========================================================================
 
     pub fn update(self: *Self) !void{
 
@@ -322,6 +324,10 @@ pub const Static = struct{
         // State update
         self.intrinsic.update_from_du(self.mass / self.volume, self.inenergy / self.mass);
     }
+    
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
 
     pub fn save_vals(self: *const Self, save_array: []f64) void {
         save_array[0] = self.intrinsic.press;

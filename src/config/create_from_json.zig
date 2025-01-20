@@ -50,43 +50,51 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         // Init specific objects, as a sim object interface
         if (std.mem.eql(u8, obj_name, @typeName(sim.motions.d1.Motion))){
             const new_obj_ptr = try sim.motions.d1.Motion.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
+            try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
         } 
         else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d1.Simple))){
             const new_obj_ptr = try sim.forces.d1.Simple.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
         }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d1.Spring))){
             const new_obj_ptr = try sim.forces.d1.Spring.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
         } 
         else if (std.mem.eql(u8, obj_name, @typeName(sim.volumes.Void))){
             const new_obj_ptr = try sim.volumes.Void.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
         }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.volumes.Static))){
             const new_obj_ptr = try sim.volumes.Static.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
+            try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
         }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.restrictions.Orifice))){
             const new_obj_ptr = try sim.restrictions.Orifice.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
         }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.restrictions.ConstantMdot))){
             const new_obj_ptr = try sim.restrictions.ConstantMdot.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
         }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.motions.d3.Motion))){
             const new_obj_ptr = try sim.motions.d3.Motion.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
+            try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
         }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d3.Simple))){
             const new_obj_ptr = try sim.forces.d3.Simple.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
         }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d3.BodySimple))){
             const new_obj_ptr = try sim.forces.d3.BodySimple.from_json(allocator, contents);
-            try new_sim_ptr.create_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
+            try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
         }
         else{
             errdefer std.log.err("ERROR| Object [{s}] was unable to be created", .{obj_name});

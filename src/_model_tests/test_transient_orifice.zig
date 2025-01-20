@@ -17,7 +17,7 @@ test "TransientOrificeFlow"{
     \\    "SimOptions":{
     \\        "dt": 1e-3 
     \\    },
-    \\    "SimObjects":[
+    \\    "sim.Objects":[
     \\        {
     \\            "object": "fluids.volumes.Void",
     \\            "name": "UpstreamTest",
@@ -70,18 +70,18 @@ test "TransientOrificeFlow"{
     const model = try sim.parse.json_sim(allocator, json[0..]);
     try model.step_duration(1.0);
 
-    const ch_orifice: sim.SimObject = try model.get_sim_object_by_name("TestChokedOrifice");
-    const uch_orifice: sim.SimObject = try model.get_sim_object_by_name("TestUnchokedOrifice");
+    const ch_orifice: sim.sim.Object = try model.get_sim_object_by_name("TestChokedOrifice");
+    const uch_orifice: sim.sim.Object = try model.get_sim_object_by_name("TestUnchokedOrifice");
     _ = ch_orifice;
     _ = uch_orifice;
 
-    const us: sim.SimObject = try model.get_sim_object_by_name("UpstreamTest");
+    const us: sim.sim.Object = try model.get_sim_object_by_name("UpstreamTest");
     const us_state = us.Void.get_intrinsic();
     
-    const ds: sim.SimObject = try model.get_sim_object_by_name("DownstreamTest");
+    const ds: sim.sim.Object = try model.get_sim_object_by_name("DownstreamTest");
     _ = ds.Void.get_intrinsic();
     
-    const uch_ds: sim.SimObject = try model.get_sim_object_by_name("DownstreamUnchokedTest");
+    const uch_ds: sim.sim.Object = try model.get_sim_object_by_name("DownstreamUnchokedTest");
     const uch_ds_state = uch_ds.Void.get_intrinsic();
 
     // Fixed Mdot

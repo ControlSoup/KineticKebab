@@ -60,12 +60,11 @@ pub const Motion = struct {
     }
 
     // =========================================================================
-    // SimObject Methods
+    // Updateable
     // =========================================================================
 
-    /// Creates a sim object interface, that holds a pointer to this object as integratable
-    pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Integratable = sim.solvers.Integratable{ .Motion1DOF = self } };
+    pub fn as_updateable(self: *Self) !void {
+        return sim.interfaces.Updatable{.Motion1DOF = self};
     }
 
     /// Computes the net force and resulting acceleration based on mass
@@ -80,6 +79,16 @@ pub const Motion = struct {
         // Get accel from force and mass
         self.accel = self.net_force / self.mass;
     }
+
+    // =========================================================================
+    // SimObject Methods
+    // =========================================================================
+
+    /// Creates a sim object interface, that holds a pointer to this object as integratable
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{ .Integratable = sim.solvers.Integratable{ .Motion1DOF = self } };
+    }
+
 
     pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.pos;

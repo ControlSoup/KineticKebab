@@ -27,43 +27,6 @@ pub const Force = union(enum) {
             },
         }
     }
-
-    // =========================================================================
-    // Sim Object Methods
-    // =========================================================================
-
-    pub fn name(self: *const Self) []const u8{
-        return switch (self.*){
-            inline else => |impl| impl.name,
-        };
-    }
-
-    pub fn get_header(self: *const Self) []const []const u8{
-        return switch (self.*){
-            .Simple => return Simple.header[0..],
-            .Spring => return Spring.header[0..],
-        };
-    }
-
-    pub fn save_vals(self: *const Self, save_array: []f64) void {
-        switch (self.*){
-            inline else => |impl| impl.save_vals(save_array),
-        }
-    }
-
-    pub fn set_vals(self: *const Self, save_array: []f64) void {
-        switch (self.*){
-            inline else => |impl| impl.set_vals(save_array),
-        }
-    }
-
-    pub fn save_len(self: *const Self) usize{
-        return switch (self.*) {
-            .Simple => return Simple.header.len,
-            .Spring => return Spring.header.len,
-        };
-    }
-
 };
 
 pub const Spring = struct {
@@ -110,6 +73,22 @@ pub const Spring = struct {
         return self.force;
     }
 
+    // =========================================================================
+    // Interfaces
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{.Spring1DOF = self };
+    }
+
+    pub fn as_force(self: *Self) Force{
+        return Force{.Spring = self };
+    }
+
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
+
     pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.spring_constant;
         save_array[1] = self.preload;
@@ -121,15 +100,6 @@ pub const Spring = struct {
         self.preload = save_array[1] ;
         self.force = save_array[2] ;
     }
-
-    // =========================================================================
-    // Sim Object Methods
-    // =========================================================================
-
-    pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Force1DOF = Force{.Spring = self }};
-    }
-
 };
 
 pub const Simple = struct {
@@ -158,7 +128,19 @@ pub const Simple = struct {
     }
 
     // =========================================================================
-    // Force Methods
+    // Interfaces
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{.Simple1DOF = self};
+    }
+
+    pub fn as_force(self: *Self) Force{
+        return Force{.Simple = self};
+    }
+
+    // =========================================================================
+    // Sim Object Methods
     // =========================================================================
 
     pub fn save_vals(self: *Self, save_array: []f64) void {
@@ -168,14 +150,4 @@ pub const Simple = struct {
     pub fn set_vals(self: *Self, save_array: []f64) void {
         self.force = save_array[0] ;
     }
-
-    // =========================================================================
-    // Sim Object Methods
-    // =========================================================================
-
-    pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Force1DOF = Force{.Simple = self }};
-    }
-
-
 };

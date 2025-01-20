@@ -204,8 +204,8 @@ pub const Orifice = struct{
     //  Sim Object Methods
     // =========================================================================
 
-    pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Restriction = Restriction{.Orifice = self}};
+    pub fn as_sim_object(self: *Self) sim.sim.Object {
+        return sim.sim.Object{.Restriction = Restriction{.Orifice = self}};
     }
 
     pub fn _check_connections(self: *Self) !void{
@@ -298,8 +298,8 @@ pub const ConstantMdot = struct{
     //  Sim Object Methods
     // =========================================================================
 
-    pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Restriction = Restriction{.ConstantMdot = self}};
+    pub fn as_sim_object(self: *Self) sim.sim.Object {
+        return sim.sim.Object{.Restriction = Restriction{.ConstantMdot = self}};
     }
 
     pub fn _check_connections(self: *Self) !void{

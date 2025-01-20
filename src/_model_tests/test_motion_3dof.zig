@@ -18,7 +18,7 @@ test "Motion3DOF"{
     \\    "SimOptions":{
     \\        "dt": 1e-3 
     \\    },
-    \\    "SimObjects":[
+    \\    "sim.Objects":[
     \\        {
     \\            "object": "physics.motions.d3.Motion",
     \\            "name": "TestSimpleOnly",

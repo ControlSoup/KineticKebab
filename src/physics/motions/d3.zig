@@ -93,17 +93,14 @@ pub const Motion = struct {
         try sim_obj.Force3DOF.add_connection(self);
     }
 
-
     // =========================================================================
-    // SimObject Methods
+    // Updatable Methods
     // =========================================================================
-
-    /// Creates a sim object interface, that holds a pointer to this object as integratable
-    pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Integratable = sim.solvers.Integratable{.Motion3DOF = self}};
+    
+    pub fn as_updateable(self: *Self) sim.SimObject {
+        return sim.interfaces.Updatable{.Motion3DOF = self};
     }
 
-    /// Computes the net force and resulting acceleration based on mass
     pub fn update(self: *Self) !void {
         // Update net force
         self.net_force = sim.math.Vec2.init_zeros();
@@ -121,6 +118,15 @@ pub const Motion = struct {
         // Get accel from force and mass
         self.accel = self.net_force.div_const(self.mass);
         self.theta_ddot = self.net_moment / self.inertia;
+    }
+
+    // =========================================================================
+    // SimObject Methods
+    // =========================================================================
+
+    /// Creates a sim object interface, that holds a pointer to this object as integratable
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{.Motion3DOF = self};
     }
 
     pub fn save_vals(self: *Self, save_array: []f64) void {
@@ -160,6 +166,10 @@ pub const Motion = struct {
     // =========================================================================
     // Integratable Methods
     // =========================================================================
+
+    pub fn as_integratable(self: *Self) sim.SimObject {
+        return sim.interfaces.Integratable{.Motino3DOF = self};
+    }
 
     pub fn set_state(self: *Self, integrated_state: [MAX_STATE_LEN]f64) void {
         self.vel.i = integrated_state[1];
