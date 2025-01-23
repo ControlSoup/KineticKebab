@@ -18,14 +18,14 @@ pub const Force = union(enum) {
     pub fn add_connection(self: *const Self, connection: *sim.motions.d3.Motion) !void {
         switch (self.*) {
             .Simple => |_| return,
-            .TVCSimple => |f| {
-                if (f.body_force.cg_ptr) |_| {
-                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
-                    return sim.errors.AlreadyConnected;
-                } else {
-                    f.*.body_force.cg_ptr = connection;
-                }
-            },
+            // .TVCSimple => |f| {
+            //     if (f.body_force.cg_ptr) |_| {
+            //         std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
+            //         return sim.errors.AlreadyConnected;
+            //     } else {
+            //         f.*.body_force.cg_ptr = connection;
+            //     }
+            // },
             inline else => |f| {
                 if (f.cg_ptr) |_| {
                     std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
@@ -79,7 +79,7 @@ pub const Simple = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Simple1DOF = self};
+        return sim.SimObject{.Simple3DOF = self};
     }
 
     pub fn as_force(self: *Self) Force{
@@ -157,27 +157,8 @@ pub const BodySimple = struct {
         return sim.SimObject{ .BodySimple3DOF = self};
     }
 
-    pub fn as_force(self: *Self) Force{
-        return Force{.BodySimple = self};
-    }
-
-    // =========================================================================
-    // Force Methods
-    // =========================================================================
-
-    pub fn get_force_moment_arr(self: *Self) ![3]f64{
-        if (self.cg_ptr == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
-            return sim.errors.MissingConnection; 
-        }
-
-        // Convert to the body frame of the object
-        self.global_force = sim.math.Vec2.from_angle_rad(self.force.norm(), self.cg_ptr.?.theta);
-
-        // Compute moments (r x F)
-        self.moment = (self.force.i * self.loc.j) + (self.force.j + self.loc.i);
-
-        return [3]f64{self.global_force.i, self.global_force.j, self.moment};
+    pub fn as_force(self: *Self) sim.forces.d3.Force{
+        return sim.forces.d3.Force{.BodySimple = self};
     }
 
     // =========================================================================
@@ -204,6 +185,25 @@ pub const BodySimple = struct {
         self.moment = save_array[6] ;
     }
 
+
+    // =========================================================================
+    // Force Methods
+    // =========================================================================
+
+    pub fn get_force_moment_arr(self: *Self) ![3]f64{
+        if (self.cg_ptr == null){
+            std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
+            return sim.errors.MissingConnection; 
+        }
+
+        // Convert to the body frame of the object
+        self.global_force = sim.math.Vec2.from_angle_rad(self.force.norm(), self.cg_ptr.?.theta);
+
+        // Compute moments (r x F)
+        self.moment = (self.force.i * self.loc.j) + (self.force.j + self.loc.i);
+
+        return [3]f64{self.global_force.i, self.global_force.j, self.moment};
+    }
 
 };
 

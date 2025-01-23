@@ -65,6 +65,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         else if (std.mem.eql(u8, obj_name, @typeName(sim.volumes.Void))){
             const new_obj_ptr = try sim.volumes.Void.from_json(allocator, contents);
             try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
         }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.volumes.Static))){
             const new_obj_ptr = try sim.volumes.Static.from_json(allocator, contents);
@@ -93,8 +94,6 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         else if (std.mem.eql(u8, obj_name, @typeName(sim.forces.d3.BodySimple))){
             const new_obj_ptr = try sim.forces.d3.BodySimple.from_json(allocator, contents);
             try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
-            try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
-            try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
         }
         else{
             errdefer std.log.err("ERROR| Object [{s}] was unable to be created", .{obj_name});
@@ -129,7 +128,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
     }
 
     // Add simulation info
-    try new_sim_ptr.add_obj(new_sim_ptr.as_sim_object());
+    try new_sim_ptr.add_sim_obj(new_sim_ptr.as_sim_object());
 
     // Perform all connections
     for (all_connections.items) |connection_event|{
@@ -139,24 +138,16 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
 
         // Most objects go from plug -> socket
         try switch (socket){
-            .Integratable => |integration| switch (integration){
-                .Motion1DOF => |impl| impl.add_connection(plug),
-                .Motion3DOF => |impl| impl.add_connection(plug),
-                .Volume => |impl| switch(connection_type){
-                    .In => try impl.add_connection_in(plug),
-                    .Out => try impl.add_connection_out(plug),
-                } 
+            .Static => |impl| switch(connection_type){
+                .In => try impl.as_volume().add_connection_in(plug),
+                .Out => try impl.as_volume().add_connection_out(plug),
             },
-            .Void => |v| switch (v){
-                .Void => |_| switch(connection_type){
-                    .In => try v.add_connection_in(plug),
-                    .Out => try v.add_connection_out(plug),
-                },
-                inline else => {
-                    std.log.err("ERROR| Unexpected Volume [{s}], this is invalid and should not happen", .{v.name()});
-                    return errors.JsonFailedConnection;
-                } 
+            .Void => |v| switch(connection_type){
+                .In => try v.as_volume().add_connection_in(plug),
+                .Out => try v.as_volume().add_connection_out(plug),
             },
+            .Motion1DOF => |impl| impl.add_connection(plug),
+            .Motion3DOF => |impl| impl.add_connection(plug),
             inline else => {
                 std.log.err("ERROR| Failed to connect [{s}] to [{s}]", .{plug.name(), socket.name()});
                 return errors.JsonFailedConnection;
@@ -171,7 +162,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         try new_sim_ptr.create_recorder_from_json(record);
     }
     
-    for (new_sim_ptr.sim_objs.items) |obj| try obj.update();
+    for (new_sim_ptr.updatables.items) |obj| try obj.update();
 
     // Give the world the sim
     return new_sim_ptr;

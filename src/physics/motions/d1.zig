@@ -1,7 +1,7 @@
 const std = @import("std");
 const sim = @import("../../sim.zig");
 
-const MAX_STATE_LEN = sim.solvers.MAX_STATE_LEN;
+const MAX_STATE_LEN = sim.interfaces.MAX_STATE_LEN;
 
 pub const Motion = struct {
     const Self = @This();
@@ -55,40 +55,29 @@ pub const Motion = struct {
     }
 
     pub fn add_connection(self: *Self, sim_obj: sim.SimObject) !void {
-        try self.connections.append(sim_obj.Force1DOF);
-        try sim_obj.Force1DOF.add_connection(self);
+        try self.connections.append(try sim_obj.as_d1force());
+        try (try sim_obj.as_d1force()).add_connection(self);
     }
 
     // =========================================================================
-    // Updateable
+    // Interfaces
     // =========================================================================
 
-    pub fn as_updateable(self: *Self) !void {
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{ .Motion1DOF = self};
+    }
+
+    pub fn as_updateable(self: *Self) sim.interfaces.Updatable {
         return sim.interfaces.Updatable{.Motion1DOF = self};
     }
 
-    /// Computes the net force and resulting acceleration based on mass
-    pub fn update(self: *Self) !void {
-
-        // Update net force
-        self.net_force = 0;
-        for (self.connections.items) |force| {
-            self.net_force += try force.get_force();
-        }
-
-        // Get accel from force and mass
-        self.accel = self.net_force / self.mass;
+    pub fn as_integratable(self: *Self) sim.interfaces.Integratable {
+        return sim.interfaces.Integratable{ .Motion1DOF = self};
     }
 
     // =========================================================================
     // SimObject Methods
     // =========================================================================
-
-    /// Creates a sim object interface, that holds a pointer to this object as integratable
-    pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Integratable = sim.solvers.Integratable{ .Motion1DOF = self } };
-    }
-
 
     pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.pos;
@@ -104,6 +93,23 @@ pub const Motion = struct {
         self.accel = save_array[2] ;
         self.net_force = save_array[3] ;
         self.mass = save_array[4] ;
+    }
+
+    // =========================================================================
+    // Updateable Methods
+    // =========================================================================
+
+    /// Computes the net force and resulting acceleration based on mass
+    pub fn update(self: *Self) !void {
+
+        // Update net force
+        self.net_force = 0;
+        for (self.connections.items) |force| {
+            self.net_force += try force.get_force();
+        }
+
+        // Get accel from force and mass
+        self.accel = self.net_force / self.mass;
     }
 
     // =========================================================================

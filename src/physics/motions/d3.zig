@@ -1,7 +1,7 @@
 const std = @import("std");
 const sim = @import("../../sim.zig");
 
-const MAX_STATE_LEN = sim.solvers.MAX_STATE_LEN;
+const MAX_STATE_LEN = sim.interfaces.MAX_STATE_LEN;
 
 pub const Motion = struct {
     const Self = @This();
@@ -89,45 +89,28 @@ pub const Motion = struct {
     }
 
     pub fn add_connection(self: *Self, sim_obj: sim.SimObject) !void {
-        try self.connections.append(sim_obj.Force3DOF);
-        try sim_obj.Force3DOF.add_connection(self);
+        try self.connections.append(try sim_obj.as_d3force());
+        try (try sim_obj.as_d3force()).add_connection(self);
+    }
+    // =========================================================================
+    // Interfaces
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{.Motion3DOF = self};
     }
 
-    // =========================================================================
-    // Updatable Methods
-    // =========================================================================
-    
-    pub fn as_updateable(self: *Self) sim.SimObject {
+    pub fn as_updateable(self: *Self) sim.interfaces.Updatable {
         return sim.interfaces.Updatable{.Motion3DOF = self};
     }
 
-    pub fn update(self: *Self) !void {
-        // Update net force
-        self.net_force = sim.math.Vec2.init_zeros();
-        self.net_moment = 0.0;
-
-        var force_moment_arr = [3]f64{0.0, 0.0, 0.0};
-
-        for (self.connections.items) |force| {
-            force_moment_arr = try force.get_force_moment_arr();
-            self.net_force.i += force_moment_arr[0];
-            self.net_force.j += force_moment_arr[1];
-            self.net_moment += force_moment_arr[2];
-        }
-
-        // Get accel from force and mass
-        self.accel = self.net_force.div_const(self.mass);
-        self.theta_ddot = self.net_moment / self.inertia;
+    pub fn as_integratable(self: *Self) sim.interfaces.Integratable {
+        return sim.interfaces.Integratable{.Motion3DOF = self};
     }
 
     // =========================================================================
     // SimObject Methods
     // =========================================================================
-
-    /// Creates a sim object interface, that holds a pointer to this object as integratable
-    pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Motion3DOF = self};
-    }
 
     pub fn save_vals(self: *Self, save_array: []f64) void {
         save_array[0] = self.pos.i;
@@ -164,12 +147,31 @@ pub const Motion = struct {
     }
 
     // =========================================================================
-    // Integratable Methods
+    // Updatable Methods
     // =========================================================================
 
-    pub fn as_integratable(self: *Self) sim.SimObject {
-        return sim.interfaces.Integratable{.Motino3DOF = self};
+    pub fn update(self: *Self) !void {
+        // Update net force
+        self.net_force = sim.math.Vec2.init_zeros();
+        self.net_moment = 0.0;
+
+        var force_moment_arr = [3]f64{0.0, 0.0, 0.0};
+
+        for (self.connections.items) |force| {
+            force_moment_arr = try force.get_force_moment_arr();
+            self.net_force.i += force_moment_arr[0];
+            self.net_force.j += force_moment_arr[1];
+            self.net_moment += force_moment_arr[2];
+        }
+
+        // Get accel from force and mass
+        self.accel = self.net_force.div_const(self.mass);
+        self.theta_ddot = self.net_moment / self.inertia;
     }
+
+    // =========================================================================
+    // Integratable Methods
+    // =========================================================================
 
     pub fn set_state(self: *Self, integrated_state: [MAX_STATE_LEN]f64) void {
         self.vel.i = integrated_state[1];

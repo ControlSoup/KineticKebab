@@ -19,7 +19,7 @@ test "Motion1DOF"{
     \\        "min_dt": 1e-3,
     \\        "max_dt": 1.0
     \\    },
-    \\    "sim.Objects":[
+    \\    "SimObjects":[
     \\        {
     \\            "object": "physics.motions.d1.Motion",
     \\            "name": "TestSimpleOnly",

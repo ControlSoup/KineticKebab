@@ -24,13 +24,15 @@ pub const errors = parse.errors || error{
     AlreadyConnected,
     MissingConnection,
     MismatchedLength,
-    CannotSet
+    CannotSet,
+    InvalidInterface
 };
 
 pub const SimObject = union(enum) {
     const Self = @This();
 
     // Fluids
+    ConstantMdot: *restrictions.ConstantMdot,
     Orifice: *restrictions.Orifice,
     Void: *volumes.Void,
     Static: *volumes.Static,
@@ -48,24 +50,79 @@ pub const SimObject = union(enum) {
     // Sim
     SimInfo: *Sim,
 
+    pub fn as_restriction(self: *const Self) !restrictions.Restriction {
+        return switch (self.*){
+            .Orifice => |impl| impl.as_restriction(),
+            .ConstantMdot => |impl| impl.as_restriction(),
+            inline else => errors.InvalidInterface
+        };
+    }
+
+    pub fn as_d1force(self: *const Self) !forces.d1.Force{
+        return switch (self.*){
+            .Simple1DOF => |impl| impl.as_force(),
+            .Spring1DOF => |impl| impl.as_force(),
+            inline else => errors.InvalidInterface
+        };
+    }
+
+    pub fn as_d3force(self: *const Self) !forces.d3.Force{
+        return switch (self.*){
+            // 3DOF
+            .Simple3DOF => |impl| impl.as_force(),
+            .BodySimple3DOF => |impl| impl.as_force(),
+            inline else => errors.InvalidInterface
+        };
+    }
+
     pub fn name(self: *const Self) []const u8 {
         return switch (self.*) {
             .SimInfo => Sim.sim_name,
-            inline else => |impl| return impl.name()
+            inline else => |impl| impl.name,
         };
     }
 
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
             .SimInfo => Sim.sim_header[0..],
-            inline else => |impl| return impl.get_header(),
+
+            // Fluids
+            .ConstantMdot => restrictions.ConstantMdot.header[0..],
+            .Orifice => restrictions.Orifice.header[0..],
+            .Void => volumes.Void.header[0..],
+            .Static => volumes.Static.header[0..],
+
+            // 1DOF
+            .Simple1DOF => forces.d1.Simple.header[0..],
+            .Spring1DOF => forces.d1.Spring.header[0..],
+            .Motion1DOF => motions.d1.Motion.header[0..],
+
+            // 3DOF
+            .Simple3DOF => forces.d3.Simple.header[0..],
+            .BodySimple3DOF => forces.d3.BodySimple.header[0..],
+            .Motion3DOF => motions.d3.Motion.header[0..]
         };
     }
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
             .SimInfo => Sim.sim_header.len,
-            inline else => |impl| return impl.save_len()
+
+            // Fluids
+            .ConstantMdot => restrictions.ConstantMdot.header.len,
+            .Orifice => restrictions.Orifice.header.len,
+            .Void => volumes.Void.header.len,
+            .Static => volumes.Static.header.len,
+
+            // 1DOF
+            .Simple1DOF => forces.d1.Simple.header.len,
+            .Spring1DOF => forces.d1.Spring.header.len,
+            .Motion1DOF => motions.d1.Motion.header.len,
+
+            // 3DOF
+            .Simple3DOF => forces.d3.Simple.header.len,
+            .BodySimple3DOF => forces.d3.BodySimple.header.len,
+            .Motion3DOF => motions.d3.Motion.header.len
         };
     }
 
@@ -89,6 +146,7 @@ pub const SimObject = union(enum) {
             inline else => |impl| impl.set_vals(save_array),
         };
     }
+
 
 };
 
@@ -192,7 +250,7 @@ pub const Sim = struct {
         try self.updatables.append(updateable);
     }
 
-    pub fn add_integratable(self: *Self, integratable: interfaces.Integratable) !void {
+    pub fn add_integratable(self: *Self, integratable: interfaces.Integratable) !void{
         try self.integrator.add_obj(integratable);
     }
 
@@ -322,8 +380,12 @@ pub const Sim = struct {
 
     fn _save_vals(self: *Self) !void{
         var buff_loc: usize = 0;
-        for (self.sim_objs.items) |obj|{
+
+        for (self.updatables.items) |obj|{
             try obj.update();
+        }
+
+        for (self.sim_objs.items) |obj|{
 
             const len: usize = obj.save_len();
 
@@ -356,9 +418,11 @@ pub const Sim = struct {
             // Ensures I don't need to check every method for length
             try std.testing.expect(save_buffer.len == obj.save_len());
 
-            try obj.update();
-
             buff_loc += len;
+        }
+
+        for (self.updatables.items) |obj| {
+            try obj.update();
         }
     }
 

@@ -3,9 +3,13 @@ const sim = @import("../sim.zig");
 pub const Updatable = union(enum) {
     const Self = @This();
 
-    Volume: sim.volumes.Volume,
-    Motion1DOF: sim.motions.d1,
-    Motion3DOF: sim.motions.d3,
+    Static: *sim.volumes.Static,
+    Void: *sim.volumes.Void,
+
+    Motion1DOF: *sim.motions.d1.Motion,
+
+    Motion3DOF: *sim.motions.d3.Motion,
+    
 
     pub fn update(self: *const Self) !void {
         return switch (self.*) {

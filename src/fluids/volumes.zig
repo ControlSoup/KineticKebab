@@ -1,6 +1,6 @@
 const std = @import("std");
 const sim = @import("../sim.zig");
-const MAX_STATE_LEN = sim.solvers.MAX_STATE_LEN;
+const MAX_STATE_LEN = sim.interfaces.MAX_STATE_LEN;
 
 pub const Volume = union(enum) {
     const Self = @This();
@@ -17,8 +17,8 @@ pub const Volume = union(enum) {
     pub fn add_connection_in(self: *const Self, sim_obj: sim.SimObject) !void{
         switch (self.*){
             inline else => |impl| {
-                try impl.connections_in.append(sim_obj.Restriction);
-                try sim_obj.Restriction.add_connection_out(impl.*.as_volume());
+                try impl.connections_in.append(try sim_obj.as_restriction());
+                try (try sim_obj.as_restriction()).add_connection_out(impl.*.as_volume());
             } 
         }
     }
@@ -26,76 +26,9 @@ pub const Volume = union(enum) {
     pub fn add_connection_out(self: *const Self, sim_obj: sim.SimObject) !void{
         switch (self.*){
             inline else => |impl| {
-                try impl.connections_out.append(sim_obj.Restriction);
-                try sim_obj.Restriction.add_connection_in(impl.*.as_volume());
+                try impl.connections_out.append(try sim_obj.as_restriction());
+                try (try sim_obj.as_restriction()).add_connection_in(impl.*.as_volume());
             } 
-        }
-    }
-
-    // =========================================================================
-    // Integratable Methods
-    // =========================================================================
-
-    pub fn get_state(self: *const Self) [MAX_STATE_LEN]f64 {
-        return switch (self.*) {
-            .Void => return [1]f64{0.0} ** MAX_STATE_LEN,
-            inline else => |m| m.get_state(),
-        };
-    }
-
-    pub fn get_dstate(self: *const Self, state: [MAX_STATE_LEN]f64) [MAX_STATE_LEN]f64 {
-        return switch (self.*) {
-            .Void => return state,
-            inline else => |m| m.get_dstate(state),
-        };
-    }
-
-    pub fn set_state(self: *const Self, state: [MAX_STATE_LEN]f64) void {
-        return switch (self.*) {
-            .Void => return,
-            inline else => |m| m.set_state(state),
-        };
-    }
-
-    // =========================================================================
-    // Sim Object Methods
-    // =========================================================================
-
-    pub fn update(self: *const Self) !void{
-        try switch (self.*){
-            inline else => |impl| impl.update(),
-        };
-    }
-
-    pub fn name(self: *const Self) []const u8{
-        return switch (self.*){
-            inline else => |impl| impl.name,
-        };
-    }
-
-    pub fn get_header(self: *const Self) []const []const u8{
-        return switch (self.*){
-            .Void => return Void.header[0..],
-            .Static => return Static.header[0..],
-        };
-    }
-
-    pub fn save_len(self: *const Self) usize{
-        return switch (self.*) {
-            .Void => return Void.header.len,
-            .Static => return Static.header.len,
-        };
-    }
-
-    pub fn save_vals(self: *const Self, save_array: []f64) void {
-        switch (self.*){
-            inline else => |impl| impl.save_vals(save_array),
-        }
-    }
-
-    pub fn set_vals(self: *const Self, save_array: []f64) void {
-        switch (self.*){
-            inline else => |impl| impl.set_vals(save_array),
         }
     }
 };
@@ -154,13 +87,25 @@ pub const Void = struct{
 
     }
 
+    // =========================================================================
+    // Interfaces
+    // =========================================================================
+
     pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.Void = Volume{.Void = self}};
+        return sim.SimObject{.Void = self};
+    }
+
+    pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
+        return sim.interfaces.Updatable{.Void = self};
     }
 
     pub fn as_volume(self: *Self) Volume{
         return Volume{.Void = self};
     }
+
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
 
     pub fn save_vals(self: *const Self, save_array: []f64) void {
         save_array[0] = self.intrinsic.press;
@@ -170,6 +115,21 @@ pub const Void = struct{
     pub fn set_vals(self: *Self, save_array: []f64) void {
         self.intrinsic.press = save_array[0] ;
         self.intrinsic.temp = save_array[1] ;
+    }
+
+    // =========================================================================
+    // Updateable Methods
+    // =========================================================================
+
+    // This method is required to update orifice mdots, but not void state
+    pub fn update(self: *Self) !void{
+        for (self.connections_in.items) |c|{
+            _ = try c.get_mdot(); 
+        }
+
+        for (self.connections_out.items) |c|{
+            _ = try c.get_mdot(); 
+        }
     }
 };
 
@@ -268,16 +228,38 @@ pub const Static = struct{
     // Interfaces
     // =========================================================================
 
-    pub fn as_volume(self: *Self) Volume{
-        return Volume{.Static = self};
-    }
-
     pub fn as_sim_object(self: *Self) sim.SimObject{
         return sim.SimObject{.Static = self};
     }
 
     pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
         return sim.interfaces.Updatable{.Static = self};
+    }
+
+    pub fn as_integratable(self: *Self) sim.interfaces.Integratable{
+        return sim.interfaces.Integratable{.Static = self};
+    }
+
+    pub fn as_volume(self: *Self) Volume{
+        return Volume{.Static = self};
+    }
+
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
+
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
+        save_array[0] = self.intrinsic.press;
+        save_array[1] = self.intrinsic.temp;
+        save_array[2] = self.mass;
+        save_array[3] = self.volume;
+    }
+    
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.intrinsic.press = save_array[0] ;
+        self.intrinsic.temp = save_array[1] ;
+        self.mass = save_array[2] ;
+        self.volume = save_array[3] ;
     }
 
     // =========================================================================
@@ -323,24 +305,6 @@ pub const Static = struct{
 
         // State update
         self.intrinsic.update_from_du(self.mass / self.volume, self.inenergy / self.mass);
-    }
-    
-    // =========================================================================
-    // Sim Object Methods
-    // =========================================================================
-
-    pub fn save_vals(self: *const Self, save_array: []f64) void {
-        save_array[0] = self.intrinsic.press;
-        save_array[1] = self.intrinsic.temp;
-        save_array[2] = self.mass;
-        save_array[3] = self.volume;
-    }
-    
-    pub fn set_vals(self: *Self, save_array: []f64) void {
-        self.intrinsic.press = save_array[0] ;
-        self.intrinsic.temp = save_array[1] ;
-        self.mass = save_array[2] ;
-        self.volume = save_array[3] ;
     }
 
     // =========================================================================

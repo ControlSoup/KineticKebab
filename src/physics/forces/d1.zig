@@ -59,21 +59,6 @@ pub const Spring = struct {
     }
 
     // =========================================================================
-    // Force Methods
-    // =========================================================================
-
-    pub fn get_force(self: *Spring) !f64 {
-
-        if (self.position_ptr == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
-            return sim.errors.MissingConnection; 
-        }
-
-        self.force = -self.spring_constant * (self.position_ptr.?.*.pos + self.preload);
-        return self.force;
-    }
-
-    // =========================================================================
     // Interfaces
     // =========================================================================
 
@@ -100,6 +85,22 @@ pub const Spring = struct {
         self.preload = save_array[1] ;
         self.force = save_array[2] ;
     }
+
+    // =========================================================================
+    // Force Methods
+    // =========================================================================
+
+    pub fn get_force(self: *Spring) !f64 {
+
+        if (self.position_ptr == null){
+            std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
+            return sim.errors.MissingConnection; 
+        }
+
+        self.force = -self.spring_constant * (self.position_ptr.?.*.pos + self.preload);
+        return self.force;
+    }
+
 };
 
 pub const Simple = struct {

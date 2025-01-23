@@ -7,7 +7,7 @@ pub const Integratable = union(enum) {
 
     Motion3DOF: *sim.motions.d3.Motion,
     Motion1DOF: *sim.motions.d1.Motion,
-    Volume: sim.volumes.Volume,
+    Static: *sim.volumes.Static,
 
     pub const RESULT = struct{
         rel_err: f64,
@@ -17,6 +17,12 @@ pub const Integratable = union(enum) {
     pub fn get_state(self: *const Self) [MAX_STATE_LEN]f64 {
         return switch (self.*) {
             inline else => |m| m.get_state(),
+        };
+    }
+
+ pub fn set_state(self: *const Self, state: [MAX_STATE_LEN]f64) void {
+        return switch (self.*) {
+            inline else => |m| m.set_state(state),
         };
     }
 
@@ -97,37 +103,37 @@ pub const Integratable = union(enum) {
         };
     }
 
-    // pub fn rk4(self: *const Self, dt: f64) [MAX_STATE_LEN]f64 {
+    pub fn rk4(self: *const Self, dt: f64) [MAX_STATE_LEN]f64 {
 
-    //     const intial_state = self.get_state();
+        const intial_state = self.get_state();
 
-    //     const k1 = self.get_dstate(intial_state);
+        const k1 = self.get_dstate(intial_state);
 
-    //     var k2 = [1]f64{1e9}**MAX_STATE_LEN; 
-    //     for (intial_state, 0..) |state,i|{
-    //         k2[i] = state + (k1[i] * dt / 2.0);  
-    //     }
-    //     k2 = self.get_dstate(k2);
+        var k2 = [1]f64{1e9}**MAX_STATE_LEN; 
+        for (intial_state, 0..) |state,i|{
+            k2[i] = state + (k1[i] * dt / 2.0);  
+        }
+        k2 = self.get_dstate(k2);
         
-    //     var k3 = [1]f64{1e9}**MAX_STATE_LEN; 
-    //     for (intial_state, 0..) |state,i|{
-    //         k3[i] = state + (k2[i] * dt / 2.0);  
-    //     }
-    //     k3 = self.get_dstate(k3);
+        var k3 = [1]f64{1e9}**MAX_STATE_LEN; 
+        for (intial_state, 0..) |state,i|{
+            k3[i] = state + (k2[i] * dt / 2.0);  
+        }
+        k3 = self.get_dstate(k3);
 
-    //     var k4 = [1]f64{1e9}**MAX_STATE_LEN; 
-    //     for (intial_state, 0..) |state,i|{
-    //         k4[i] = state + (k3[i] * dt);  
-    //     }
-    //     k4 = self.get_dstate(k4);
+        var k4 = [1]f64{1e9}**MAX_STATE_LEN; 
+        for (intial_state, 0..) |state,i|{
+            k4[i] = state + (k3[i] * dt);  
+        }
+        k4 = self.get_dstate(k4);
 
-    //     var result = [1]f64{1e9}**MAX_STATE_LEN; 
-    //     for (intial_state, 0..) |state, i|{
-    //         result[i] = state + ((dt / 6.0) * (k1[i] + (k2[i] * 2.0) + (k3[i] * 2.0) + k4[i])); 
-    //     }
+        var result = [1]f64{1e9}**MAX_STATE_LEN; 
+        for (intial_state, 0..) |state, i|{
+            result[i] = state + ((dt / 6.0) * (k1[i] + (k2[i] * 2.0) + (k3[i] * 2.0) + k4[i])); 
+        }
 
-    //     return result;
-    // }
+        return result;
+    }
 
 };
 

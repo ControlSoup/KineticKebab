@@ -27,7 +27,7 @@ pub const Restriction = union(enum){
         switch (self.*) {
             inline else => |f| {
                 if (f.connection_in) |_| {
-                    std.log.err("ERROR| Object [{s}] is already connected to [{s}]", .{ f.name, f.connection_in.?.name()});
+                    std.log.err("ERROR| Object [{s}] is already connected", .{f.name});
                     return sim.errors.AlreadyConnected;
                 } else {
                     f.*.connection_in = volume_obj;
@@ -43,49 +43,13 @@ pub const Restriction = union(enum){
         switch (self.*) {
             inline else => |f| {
                 if (f.connection_out) |_| {
-                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.name, f.connection_out.?.name()});
+                    std.log.err("ERROR| Object[{s}] is already connected", .{f.name});
                     return sim.errors.AlreadyConnected;
                 } else {
                        f.*.connection_out = volume_obj; 
                 }
             }
         }
-    }
-
-    // =========================================================================
-    // Sim Object Methods
-    // =========================================================================
-
-    pub fn name(self: *const Self) []const u8{
-        return switch (self.*){
-            inline else => |impl| impl.name,
-        };
-    }
-
-    pub fn save_vals(self: *const Self, save_array: []f64) void{
-        switch (self.*){
-            inline else => |impl| impl.save_vals(save_array),
-        }
-    }
-
-    pub fn set_vals(self: *const Self, save_array: []f64) void{
-        switch (self.*){
-            inline else => |impl| impl.set_vals(save_array),
-        }
-    }
-
-    pub fn get_header(self: *const Self) []const []const u8{
-        return switch (self.*){
-            .ConstantMdot => return ConstantMdot.header[0..],
-            .Orifice => return Orifice.header[0..],
-        };
-    }
-
-    pub fn save_len(self: *const Self) usize{
-        return switch (self.*){
-            .ConstantMdot => return ConstantMdot.header.len,
-            .Orifice => return Orifice.header.len,
-        };
     }
 };
 
@@ -138,6 +102,22 @@ pub const Orifice = struct{
         );
     }
 
+    // =========================================================================
+    //  Intefaces
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{.Orifice = self};
+    }
+
+    pub fn as_restriction(self: *Self) Restriction{
+        return Restriction{.Orifice = self};
+    }
+
+    // =========================================================================
+    //  Restriction Methods
+    // =========================================================================
+
     pub fn get_mdot(self: *Self) !f64{
 
         try self._check_connections();
@@ -189,25 +169,6 @@ pub const Orifice = struct{
         }
     }
 
-    pub fn save_vals(self: *const Self, save_array: []f64) void{
-        save_array[0] = self.cda;
-        save_array[1] = self.mdot;
-        save_array[2] = self.dp;
-        save_array[3] = if (self.is_choked) 1.0 else 0.0;
-    }
-
-    pub fn set_vals(self: *Self, save_array: []f64) void{
-        self.cda = save_array[0] ;
-    }
-
-    // =========================================================================
-    //  Sim Object Methods
-    // =========================================================================
-
-    pub fn as_sim_object(self: *Self) sim.sim.Object {
-        return sim.sim.Object{.Restriction = Restriction{.Orifice = self}};
-    }
-
     pub fn _check_connections(self: *Self) !void{
 
         if (self.connection_in == null){
@@ -222,7 +183,20 @@ pub const Orifice = struct{
         }
     }
 
+    // =========================================================================
+    //  Sim Object Methods
+    // =========================================================================
 
+    pub fn save_vals(self: *const Self, save_array: []f64) void{
+        save_array[0] = self.cda;
+        save_array[1] = self.mdot;
+        save_array[2] = self.dp;
+        save_array[3] = if (self.is_choked) 1.0 else 0.0;
+    }
+
+    pub fn set_vals(self: *Self, save_array: []f64) void{
+        self.cda = save_array[0] ;
+    }
 };
 
 pub const ConstantMdot = struct{
@@ -255,6 +229,36 @@ pub const ConstantMdot = struct{
         );
     }
 
+    // =========================================================================
+    //  Interfaces
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{.ConstantMdot = self};
+    }
+
+    pub fn as_restriction(self: *Self) sim.restrictions.Restriction {
+        return Restriction{.ConstantMdot = self};
+    }
+
+    // =========================================================================
+    //  Sim Object Methods
+    // =========================================================================
+
+    pub fn save_vals(self: *const Self, save_array: []f64) void{
+        save_array[0] = self.mdot;
+        save_array[1] = self.dp;
+        save_array[2] = if (self.is_choked) 1.0 else 0.0;
+    }
+
+    pub fn set_vals(self: *const Self, save_array: []f64) void{
+        save_array[0] = self.mdot;
+    }
+
+    // =========================================================================
+    // Restriction Methods
+    // =========================================================================
+
     pub fn get_mdot(self: *Self) !f64{
 
         try self._check_connections();
@@ -283,25 +287,7 @@ pub const ConstantMdot = struct{
             return self.connection_out.?.get_intrinsic().sp_enthalpy;
         }
     }
-
-    pub fn save_vals(self: *const Self, save_array: []f64) void{
-        save_array[0] = self.mdot;
-        save_array[1] = self.dp;
-        save_array[2] = if (self.is_choked) 1.0 else 0.0;
-    }
-
-    pub fn set_vals(self: *const Self, save_array: []f64) void{
-        save_array[0] = self.mdot;
-    }
-
-    // =========================================================================
-    //  Sim Object Methods
-    // =========================================================================
-
-    pub fn as_sim_object(self: *Self) sim.sim.Object {
-        return sim.sim.Object{.Restriction = Restriction{.ConstantMdot = self}};
-    }
-
+    
     pub fn _check_connections(self: *Self) !void{
 
         if (self.connection_in == null){

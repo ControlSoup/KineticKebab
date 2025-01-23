@@ -18,7 +18,7 @@ test "Blowdown"{
     \\    "SimOptions":{
     \\        "dt": 0.50 
     \\    },
-    \\    "sim.Objects":[
+    \\    "SimObjects":[
     \\        {
     \\            "object": "fluids.volumes.Static",
     \\            "name": "UpstreamTest",
