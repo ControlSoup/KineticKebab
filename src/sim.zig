@@ -147,6 +147,16 @@ pub const SimObject = union(enum) {
         };
     }
 
+    // Method to dynamically check method avaliblity? Might work?
+    //
+    // inline else => |impl| blk: {
+    // if (@hasDecl(@TypeOf(impl), "as_restriction")) {
+    //     break :blk impl.as_restriction();
+    // }
+    // break :blk error.InvalidInterface;
+    //}
+    // 
+
 
 };
 

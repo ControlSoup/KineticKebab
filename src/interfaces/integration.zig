@@ -20,7 +20,7 @@ pub const Integratable = union(enum) {
         };
     }
 
- pub fn set_state(self: *const Self, state: [MAX_STATE_LEN]f64) void {
+    pub fn set_state(self: *const Self, state: [MAX_STATE_LEN]f64) void {
         return switch (self.*) {
             inline else => |m| m.set_state(state),
         };

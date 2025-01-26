@@ -33,10 +33,14 @@ pub fn build(b: *std.Build) void {
 
     const so = b.addSharedLibrary(.{
         .name = "kinetic_kebab",
-        .root_source_file = b.path("src/sim.zig"),
+        .root_source_file = b.path("src/c_abi.zig"),
         .target = target,
         .optimize = optimize,
     });
+    so.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    so.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    so.linkSystemLibrary("CoolProp");
+    so.linkLibC();
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
