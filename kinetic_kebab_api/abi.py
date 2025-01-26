@@ -18,12 +18,36 @@ get_value_by_name = lib.get_value_by_name
 get_value_by_name.argtypes = [c_void_p, c_char_p, c_size_t]
 get_value_by_name.restype = c_double 
 
+class StateNames(Structure):
+    _fields_ = [("len", c_size_t), ("vals", POINTER(POINTER(c_ubyte)))]
+
+    def as_list(self):
+        return [self.vals[i] for i in range(self.len)]
+
+state_names = lib.state_names
+state_names.argtypes = [c_void_p]
+state_names.restype = StateNames 
+
+
+
+class StateVals(Structure):
+    _fields_ = [("len", c_size_t), ("vals", POINTER(c_double))]
+
+    def as_list(self):
+        return [self.vals[i] for i in range(self.len)]
+
+state_vals = lib.state_vals
+state_vals.argtypes = [c_void_p]
+state_vals.restype = StateVals 
+
 
 
 json = '''
 {
     "SimOptions":{
-        "dt": 0.50 
+        "dt": 0.50,
+        "min_dt": 1e-5,
+        "allowable_error": 1e-4
     },
     "SimObjects":[
         {
@@ -54,16 +78,12 @@ json = '''
 '''.encode("utf-8")
 
 ptr = json_to_sim(json, len(json))
+names = state_names(ptr)
+print(names.len)
+print([names.vals[i] for i in range(names.len)])
+print(state_vals(ptr).as_list())
+step(ptr)
+print(state_vals(ptr).as_list())
 
 
-def get_state(state: str):
-    utf8_state = state.encode("utf-8")
-    print(f"{state}", get_value_by_name(ptr, utf8_state, len(state)))
-
-
-get_state("UpstreamTest.press [Pa]")
-get_state("sim.time [s]")
-step_duration(ptr, 0.125)
-get_state("UpstreamTest.press [Pa]")
-get_state("sim.time [s]")
 

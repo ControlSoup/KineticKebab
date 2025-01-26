@@ -10,9 +10,31 @@ fn from_opaque_to_sim(curr_sim: SimOpaque) *sim.Sim {
     return @as(*sim.Sim, @ptrCast(curr_sim));
 }
 
-export fn json_to_sim(json_content: *const u8, json_len: usize) callconv(.C) SimOpaque { const json_string: []const u8 = @as([*]const u8, @ptrCast(json_content))[0..json_len];
+export fn json_to_sim(json_content: *const u8, json_len: usize) callconv(.C) SimOpaque { 
+    const json_string: []const u8 = @as([*]const u8, @ptrCast(json_content))[0..json_len];
     const result = sim.parse.json_sim(allocator, json_string) catch |e| std.debug.panic("{!}", .{e});
     return @as(SimOpaque, @ptrCast(result));
+}
+
+// const StateNames = extern struct{
+//     len: usize,
+//     all_names: **const u8
+// };
+
+// export fn state_names(curr_sim: SimOpaque) callconv(.C) StateNames{
+//     const sim_ptr = from_opaque_to_sim(curr_sim);
+
+//     const len = sim_ptr.state_names.items.len;
+
+//     return StateNames{
+//         .len = len,
+//         .all_names = @as(**const u8, @ptrCast(sim_ptr.state_names.items)),
+//     };
+// }
+
+export fn state_vals(curr_sim: SimOpaque) callconv(.C) extern struct{len: usize, vals: *const f64}{
+    const sim_ptr = from_opaque_to_sim(curr_sim);
+    return .{.len = sim_ptr.state_vals.items.len, .vals = @as(*const f64, @ptrCast(sim_ptr.state_vals.items))};
 }
 
 export fn step(curr_sim: SimOpaque) callconv(.C) void {

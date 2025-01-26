@@ -221,7 +221,7 @@ pub const Sim = struct {
             allocator,
             try parse.field(allocator, f64, Self, "dt", contents),
             try parse.optional_field(allocator, f64, Self, "max_dt", contents) orelse 1.0,
-            try parse.optional_field(allocator, f64, Self, "min_dt", contents) orelse 1e-4,
+            try parse.optional_field(allocator, f64, Self, "min_dt", contents) orelse 1e-3,
             try parse.optional_field(allocator, f64, Self, "allowable_error", contents) orelse 1e-6,
         );
         return new;
@@ -246,7 +246,7 @@ pub const Sim = struct {
         try self.sim_objs.append(obj);
         for (obj.get_header()) |header| {
 
-            const name: []u8 = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ obj.name(), header });
+            const name: []u8 = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ obj.name(), header});
 
             try self.state_names.append(name);
             try self.state_vals.append(-404.0);
