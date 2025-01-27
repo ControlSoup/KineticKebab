@@ -97,17 +97,6 @@ pub fn main() !void {
     std.log.info("Running sim for [{d:0.8}s]", .{duration});
     try json_sim_result.step_duration(duration);
 
-    if (json_sim_result.storage) |storage|{
-        std.log.info("Exporting and compressing results to [{s}]", .{storage.file_path});
-    }
     try json_sim_result.end();
     std.log.info("Simulation Complete", .{});
-}
-
-test {
-    _ = @import("_model_tests/test_motion_1dof.zig");
-    _ = @import("_model_tests/test_motion_3dof.zig");
-    _ = @import("_model_tests/test_transient_orifice.zig");
-    _ = @import("_model_tests/test_blowdown.zig");
-    std.testing.refAllDecls(@This());
 }

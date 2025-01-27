@@ -142,23 +142,91 @@ pub const MAX_STATE_LEN = 9;
 
 pub const Integrator = struct{
     const Self = @This();
+    pub const name = "integrator";
+    pub const header = [_][]const u8{"dt [s]", "relative_error [-]"};
 
     obj_list: std.ArrayList(Integratable),
     curr_states: std.ArrayList([MAX_STATE_LEN]f64),
 
-    pub const RESULT = struct{
-        dt: f64,
-        accepted_dt: f64, 
-        curr_rel_err: f64
-    };
+    new_dt: f64,
+    max_dt: f64,
+    min_dt: f64,
+    err_allow: f64,
+
+    accepted_dt: f64,
+    cur_rel_err: f64 = 0.0,
+    enforce_dt: bool = false, 
+
+    // =========================================================================
+    // Interfaces
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject{
+        return sim.SimObject{.Integrator = self};
+    }
+
+    // =========================================================================
+    // SimObject Methods
+    // =========================================================================
+
+    pub fn save_vals(self: *Self, save_array: []f64) void {
+        save_array[0] = self.accepted_dt;
+        save_array[1] = self.cur_rel_err;
+    }
+    
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.new_dt = save_array[0] ;
+    }
+
+    // =========================================================================
+    // Integrator Methods
+    // =========================================================================
 
     pub fn init(
-        allocator: std.mem.Allocator,
-    ) Self{
+        allocator: std.mem.Allocator, 
+        new_dt: f64, 
+        max_dt: f64, 
+        min_dt: f64, 
+        err_allow: f64
+    ) !Self{
+
+        if (new_dt <= 0.0) {
+            std.log.err("ERROR| intial_dt input must be >= 0", .{});
+            return sim.errors.InputLessThanZero;
+        }
+
         return Self{
+            .new_dt = new_dt,
+            .max_dt = max_dt,
+            .min_dt = min_dt,
+            .accepted_dt = new_dt,
+            .err_allow = err_allow,
             .obj_list =  std.ArrayList(Integratable).init(allocator),
             .curr_states = std.ArrayList([MAX_STATE_LEN]f64).init(allocator),
         };
+    }
+    
+    pub fn create(
+        allocator: std.mem.Allocator, 
+        new_dt: f64, 
+        max_dt: f64, 
+        min_dt: f64, 
+        err_allow: f64
+    ) !*Self{
+        const ptr = try allocator.create(Self);
+        ptr.* = try init(allocator, new_dt, max_dt, min_dt, err_allow);
+        return ptr; 
+    }
+
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
+        const new = try create(
+            allocator,
+            try sim.parse.optional_field(allocator, f64, Self, "intial_dt", contents) orelse 0.001,
+            try sim.parse.optional_field(allocator, f64, Self, "max_dt", contents) orelse 0.1,
+            try sim.parse.optional_field(allocator, f64, Self, "min_dt", contents) orelse 1e-4,
+            try sim.parse.optional_field(allocator, f64, Self, "err_allow", contents) orelse 1e-6,
+        );
+        return new;
     }
 
     pub fn add_obj(self: *Self, obj: Integratable) !void{
@@ -166,25 +234,24 @@ pub const Integrator = struct{
         try self.curr_states.append([1]f64{-404.0} ** MAX_STATE_LEN);
     } 
 
-    pub fn integrate(self: *Self, dt: f64, max_dt: f64, min_dt: f64, err_allow: f64, last_err: f64, enforce_dt: bool) !RESULT{
+    pub fn integrate(self: *Self) !void{
         
         if (self.obj_list.items.len == 0){
-            return RESULT{.dt = dt, .accepted_dt = dt, .curr_rel_err = 0.0};
+            return;
         }
 
         var step_accepted: bool = false;
-        var accepted_dt: f64 = dt;
-        var new_dt: f64 = dt;
+        var new_dt: f64 = self.new_dt;
 
         var curr_max_err: f64 = 0.0;
 
-        // Find an acceptable step size (should there be a cap on itterations?)
+        // Find an acceptable step size 
         while (!step_accepted){
 
             curr_max_err = 0.0;
 
 
-            // Itterate through integratable objects getting a solution, rk45 was giving 0 error so switched to this?
+            // Itterate through integratable objects getting a solution
             for (self.obj_list.items, 0..) |obj, i|{
                 var new_state = obj.rk4(new_dt);
                 var current_state = obj.get_state();
@@ -198,26 +265,26 @@ pub const Integrator = struct{
                 self.curr_states.items[i] = new_state;
             }
 
-            if (curr_max_err <= err_allow or (new_dt == max_dt) or (new_dt == min_dt) or enforce_dt){
+            if (curr_max_err <= self.err_allow or (new_dt == self.max_dt) or (new_dt == self.min_dt) or self.enforce_dt){
                 step_accepted = true; 
-                accepted_dt = new_dt;
+                self.accepted_dt = new_dt;
             }
 
             // Compute the new dt
-            new_dt = new_t_step(err_allow, curr_max_err, last_err, 5, new_dt);
+            new_dt = new_t_step(self.err_allow, curr_max_err, self.cur_rel_err, 5, new_dt);
 
             // Enforce the limits for the next time step if required
-            if (new_dt > max_dt){
-                new_dt = max_dt;
+            if (new_dt > self.max_dt){
+                new_dt = self.max_dt;
             }
             
-            if (new_dt < min_dt){
-                new_dt = min_dt;
+            if (new_dt < self.min_dt){
+                new_dt = self.min_dt;
             }
 
             // If the next time step is a huge jump up, rate limit
-            if (new_dt > dt * 3){
-                new_dt =  3 * dt;
+            if (new_dt > self.accepted_dt * 3){
+                new_dt =  3 * self.accepted_dt;
             }
 
         } 
@@ -228,7 +295,8 @@ pub const Integrator = struct{
             obj.set_state(self.curr_states.items[i]);
         }
 
-        return RESULT{.dt = new_dt, .accepted_dt = accepted_dt, .curr_rel_err = curr_max_err};
+        self.new_dt = new_dt;
+        self.cur_rel_err = curr_max_err;
     }
 
 };

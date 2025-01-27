@@ -253,13 +253,27 @@ pub const Static = struct{
         save_array[1] = self.intrinsic.temp;
         save_array[2] = self.mass;
         save_array[3] = self.volume;
+        save_array[4] = self.inenergy;
+        save_array[5] = self.mdot_in;
+        save_array[6] = self.mdot_out;
+        save_array[7] = self.net_mdot;
+        save_array[8] = self.hdot_in;
+        save_array[9] = self.hdot_out;
+        save_array[10] = self.net_inenergy_dot;
     }
     
     pub fn set_vals(self: *Self, save_array: []f64) void {
-        self.intrinsic.press = save_array[0] ;
-        self.intrinsic.temp = save_array[1] ;
-        self.mass = save_array[2] ;
-        self.volume = save_array[3] ;
+        self.intrinsic.press = save_array[0];
+        self.intrinsic.temp = save_array[1];
+        self.mass = save_array[2];
+        self.volume = save_array[3];
+        self.inenergy = save_array[4]; 
+        self.mdot_in = save_array[5]; 
+        self.mdot_out = save_array[6]; 
+        self.net_mdot = save_array[7]; 
+        self.hdot_in = save_array[8]; 
+        self.hdot_out = save_array[9]; 
+        self.net_inenergy_dot = save_array[10]; 
     }
 
     // =========================================================================
@@ -274,12 +288,15 @@ pub const Static = struct{
         for (self.connections_in.items) |c|{
             const new_mdot = try c.get_mdot(); 
 
-            if (new_mdot >= 0.0){
+            if (@abs(new_mdot) < 1e-8){
+                continue;
+            }
+            else if (new_mdot >= 0.0){
                 self.mdot_in += new_mdot; 
                 self.hdot_in += try c.get_hdot(); 
             } else{
                 self.mdot_out += - new_mdot; 
-                self.hdot_out += - try c.get_hdot(); 
+                self.hdot_out += try c.get_hdot(); 
             }
         }
 
@@ -288,17 +305,20 @@ pub const Static = struct{
         for (self.connections_out.items) |c|{
             const new_mdot = try c.get_mdot(); 
 
-            if (new_mdot >= 0.0){
+            if (@abs(new_mdot) < 1e-8){
+                continue;
+            }
+            else if (new_mdot >= 0.0){
                 self.mdot_out += new_mdot; 
                 self.hdot_out += try c.get_hdot(); 
             } else{
-                self.mdot_out += - new_mdot; 
-                self.hdot_in += - try c.get_hdot(); 
+                self.mdot_in += - new_mdot; 
+                self.hdot_in += try c.get_hdot(); 
             }
         }
 
 
-        // Continuity Equations (ingoring head and velocity)
+        // Continuity Equation (ingoring head and velocity)
         self.net_mdot = self.mdot_in - self.mdot_out;
         self.net_inenergy_dot = (self.mdot_in * self.hdot_in) - (self.mdot_out * self.hdot_out);
 
