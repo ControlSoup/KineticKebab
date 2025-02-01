@@ -16,7 +16,8 @@ test "Motion3DOF"{
     var json = 
     \\{
     \\    "SimOptions":{
-    \\        "dt": 1e-3 
+    \\        "dt": 1e-3, 
+    \\        "integration_method": "Rk4" 
     \\    },
     \\    "SimObjects":[
     \\        {

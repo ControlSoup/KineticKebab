@@ -56,5 +56,5 @@ test "ideal_mdots"{
 // =============================================================================
 
 pub fn incompresible_mdot(cda: f64, us_density: f64, us_press: f64, ds_press: f64) f64{
-    return cda * std.math.sqrt(2.0 * us_density * (us_density - ds_press));
+    return cda * std.math.sqrt(2.0 * us_density * (us_press - ds_press));
 }

@@ -32,7 +32,7 @@ pub const Integratable = union(enum) {
         };
     }
 
-    pub fn rk45_adaptive(self: *const Self,  dt: f64) RESULT{
+    pub fn rk4_adaptive(self: *const Self,  dt: f64) RESULT{
 
         const intial_state = self.get_state();
 
@@ -135,6 +135,42 @@ pub const Integratable = union(enum) {
         return result;
     }
 
+    pub fn euler(self: *const Self, dt: f64) [MAX_STATE_LEN]f64 {
+        const intial_state = self.get_state();
+
+        var result = [1]f64{1e9}**MAX_STATE_LEN; 
+        for (intial_state, 0..) |state, i|{
+            result[i] = state + (intial_state[i] * dt);
+        }
+        result = self.get_dstate(result);
+        return result;
+
+    }
+
+};
+
+pub const IntegrationMethod = enum{
+    const Self = @This();
+
+    Euler,
+    Rk4,
+    Rk4Adaptive,
+
+    pub fn from_str(method_str: []const u8) !Self{
+        if (std.mem.eql(u8, method_str, "Euler")){
+            return Self.Euler;
+        }
+        else if (std.mem.eql(u8, method_str, "Rk4")){
+            return Self.Rk4;
+        }
+        else if (std.mem.eql(u8, method_str, "Rk4Adaptive")){
+            return Self.Rk4Adaptive;
+        }
+        else {
+            std.log.err("ERROR| Invalid IntegrationMethod$ {s}", .{method_str});
+            return sim.errors.InvalidInput;
+        }
+    }
 };
 
 // Maximum number of state variables an object can have (used to prevent allocations for integration)
@@ -156,6 +192,7 @@ pub const Integrator = struct{
     accepted_dt: f64,
     cur_rel_err: f64 = 0.0,
     enforce_dt: bool = false, 
+    method: IntegrationMethod,
 
     // =========================================================================
     // Interfaces
@@ -187,7 +224,8 @@ pub const Integrator = struct{
         new_dt: f64, 
         max_dt: f64, 
         min_dt: f64, 
-        err_allow: f64
+        err_allow: f64,
+        method: IntegrationMethod
     ) !Self{
 
         if (new_dt <= 0.0) {
@@ -203,6 +241,7 @@ pub const Integrator = struct{
             .err_allow = err_allow,
             .obj_list =  std.ArrayList(Integratable).init(allocator),
             .curr_states = std.ArrayList([MAX_STATE_LEN]f64).init(allocator),
+            .method = method
         };
     }
     
@@ -211,10 +250,11 @@ pub const Integrator = struct{
         new_dt: f64, 
         max_dt: f64, 
         min_dt: f64, 
-        err_allow: f64
+        err_allow: f64,
+        method: IntegrationMethod
     ) !*Self{
         const ptr = try allocator.create(Self);
-        ptr.* = try init(allocator, new_dt, max_dt, min_dt, err_allow);
+        ptr.* = try init(allocator, new_dt, max_dt, min_dt, err_allow, method);
         return ptr; 
     }
 
@@ -225,6 +265,7 @@ pub const Integrator = struct{
             try sim.parse.optional_field(allocator, f64, Self, "max_dt", contents) orelse 0.1,
             try sim.parse.optional_field(allocator, f64, Self, "min_dt", contents) orelse 1e-4,
             try sim.parse.optional_field(allocator, f64, Self, "err_allow", contents) orelse 1e-6,
+            try IntegrationMethod.from_str(try sim.parse.string_field(allocator, Self, "integration_method", contents)),
         );
         return new;
     }
@@ -235,10 +276,35 @@ pub const Integrator = struct{
     } 
 
     pub fn integrate(self: *Self) !void{
-        
         if (self.obj_list.items.len == 0){
             return;
         }
+
+        switch (self.method) {
+            .Euler => try self.euler(),
+            .Rk4 => try self.rk4(),
+            .Rk4Adaptive => try self.rk4_adaptive()
+        }
+
+    }
+
+    pub fn rk4(self: *Self) !void{
+        for (self.obj_list.items) |obj|{
+            const new_state = obj.rk4(self.new_dt);
+            obj.set_state(new_state);
+        }
+    }
+
+    pub fn euler(self: *Self) !void{
+        for (self.obj_list.items) |obj|{
+            const new_state = obj.euler(self.new_dt);
+            obj.set_state(new_state);
+        }
+
+    }
+
+    pub fn rk4_adaptive(self: *Self) !void{
+        
 
         var step_accepted: bool = false;
         var new_dt: f64 = self.new_dt;

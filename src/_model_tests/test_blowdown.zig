@@ -16,7 +16,8 @@ test "Blowdown"{
     var json=
     \\{
     \\    "SimOptions":{
-    \\        "dt": 0.50 
+    \\        "dt": 0.50,
+    \\        "integration_method": "Rk4" 
     \\    },
     \\    "SimObjects":[
     \\        {

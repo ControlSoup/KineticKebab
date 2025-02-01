@@ -17,7 +17,8 @@ test "Motion1DOF"{
     \\    "SimOptions":{
     \\        "dt": 0.1,
     \\        "min_dt": 1e-3,
-    \\        "max_dt": 1.0
+    \\        "max_dt": 1.0,
+    \\        "integration_method": "Rk4" 
     \\    },
     \\    "SimObjects":[
     \\        {

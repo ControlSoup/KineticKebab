@@ -132,10 +132,10 @@ pub const Orifice = struct{
 
         self.dp = state_in.press - state_out.press;
 
-        // if (@abs(self.dp) <= 0.1){
-        //     self.mdot = 0.0;
-        //     return 0.0;
-        // }
+        if (@abs(self.dp) <= 0.1){
+            self.mdot = 0.0;
+            return 0.0;
+        }
 
         // For the purposes of the calc is dp < 0 flow is reversed
         if (self.dp < 0.0){
@@ -155,7 +155,7 @@ pub const Orifice = struct{
                 }
             },
             .Incompressible =>{
-                self.is_choked = 0.0;
+                self.is_choked = false;
                 self.mdot = equations.orifice.incompresible_mdot(self.cda, state_in.density, state_in.press, state_out.press);
             }
         }
