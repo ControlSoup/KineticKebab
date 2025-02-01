@@ -26,7 +26,7 @@ pub const FluidLookup = union(enum){
             return FluidLookup{.CoolProp = AirCoolProp};
         }
         else {
-            std.log.err("ERROR| Invalid fluid: {s}", .{lookup_str});
+            std.log.err("Invalid fluid: {s}", .{lookup_str});
             return sim.errors.InvalidInput;
         } 
     }

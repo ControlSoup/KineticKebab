@@ -44,7 +44,7 @@ pub fn main() !void {
     defer res.deinit();
 
     if (res.args.input != null and res.args.raw != null){
-        std.log.err("ERROR| Cannont use -i/--input and -r/--raw at the same time, please use only one", .{});
+        std.log.err("Cannont use -i/--input and -r/--raw at the same time, please use only one", .{});
         return errors.InvalidArgs; 
     }
 
@@ -81,7 +81,7 @@ pub fn main() !void {
     if (res.args.duration) |d|{
         duration = d;
     } else{
-        std.log.err("ERROR| Please specify a duraion to run the sim with -d/--duration", .{});
+        std.log.err("Please specify a duraion to run the sim with -d/--duration", .{});
         return errors.InvalidArgs;
     }
 

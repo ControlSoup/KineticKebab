@@ -28,7 +28,7 @@ pub const Restriction = union(enum){
         switch (self.*) {
             inline else => |f| {
                 if (f.connection_in) |_| {
-                    std.log.err("ERROR| Object [{s}] is already connected", .{f.name});
+                    std.log.err("Object [{s}] is already connected", .{f.name});
                     return sim.errors.AlreadyConnected;
                 } else {
                     f.*.connection_in = volume_obj;
@@ -44,7 +44,7 @@ pub const Restriction = union(enum){
         switch (self.*) {
             inline else => |f| {
                 if (f.connection_out) |_| {
-                    std.log.err("ERROR| Object[{s}] is already connected", .{f.name});
+                    std.log.err("Object[{s}] is already connected", .{f.name});
                     return sim.errors.AlreadyConnected;
                 } else {
                        f.*.connection_out = volume_obj; 
@@ -132,6 +132,7 @@ pub const Orifice = struct{
 
         self.dp = state_in.press - state_out.press;
 
+        // If your less than 0.1 Pa common man... its not flowing
         if (@abs(self.dp) <= 0.1){
             self.mdot = 0.0;
             return 0.0;
@@ -177,13 +178,13 @@ pub const Orifice = struct{
     pub fn _check_connections(self: *Self) !void{
 
         if (self.connection_in == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection_in", .{self.name});
+            std.log.err("Object[{s}] is missing a connection_in", .{self.name});
             return sim.errors.AlreadyConnected; 
         }
 
 
         if (self.connection_out == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection_out", .{self.name});
+            std.log.err("Object[{s}] is missing a connection_out", .{self.name});
             return sim.errors.AlreadyConnected; 
         }
     }
@@ -294,13 +295,13 @@ pub const ConstantMdot = struct{
     pub fn _check_connections(self: *Self) !void{
 
         if (self.connection_in == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection_in", .{self.name});
+            std.log.err("Object[{s}] is missing a connection_in", .{self.name});
             return sim.errors.AlreadyConnected; 
         }
 
 
         if (self.connection_out == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection_out", .{self.name});
+            std.log.err("Object[{s}] is missing a connection_out", .{self.name});
             return sim.errors.AlreadyConnected; 
         }
     }

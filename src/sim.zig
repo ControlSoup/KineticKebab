@@ -264,7 +264,7 @@ pub const Sim = struct {
     pub fn step_duration(self: *Self, duration: f64) !void{
 
         if (0.0 > duration){
-            std.log.err("ERROR| step_duration must be > 0, got [{d}]", .{duration});
+            std.log.err("step_duration must be > 0, got [{d}]", .{duration});
             return errors.InputLessThanZero;
         }
 
@@ -294,7 +294,7 @@ pub const Sim = struct {
             if (std.mem.eql(u8, obj, name)) return i;
         }
 
-        std.log.err("ERROR| Could not find index with object.save named [{s}]", .{name});
+        std.log.err("Could not find index with object.save named [{s}]", .{name});
         return errors.SimObjectDoesNotExist;
     }
 
@@ -310,13 +310,13 @@ pub const Sim = struct {
             if (std.mem.eql(u8, obj.name(), name)) return obj;
         }
 
-        std.log.err("ERROR| Could not find object named [{s}]", .{name});
+        std.log.err("Could not find object named [{s}]", .{name});
         return errors.SimObjectDoesNotExist;
     }
 
     pub fn set_value(self: *Self, idx: usize, value: f64) !void{
         if (idx < 0 or idx > self.state_vals.items.len - 1){
-            std.log.err("ERROR| When setting a value, indx must be >= 0 and less then {d}", .{self.state_vals.items.len - 1}); 
+            std.log.err("When setting a value, indx must be >= 0 and less then {d}", .{self.state_vals.items.len - 1}); 
             return errors.InvalidInput;
         }
         self.state_vals.items[idx] = value;
@@ -345,7 +345,7 @@ pub const Sim = struct {
     fn _name_exists(self: *Self, name1: []const u8) !void{
         for (self.state_names.items) |name2|{
             if (std.mem.eql(u8, name1, name2)) {
-                std.log.err("ERROR| Object Name [{s}] already exists, please remove duplicate", .{name1});
+                std.log.err("Object Name [{s}] already exists, please remove duplicate", .{name1});
                 return errors.SimObjectDuplicate;
             }
         }            

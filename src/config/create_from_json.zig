@@ -97,13 +97,13 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
         }
         else{
-            errdefer std.log.err("ERROR| Object [{s}] was unable to be created", .{obj_name});
+            errdefer std.log.err("Object [{s}] was unable to be created", .{obj_name});
             return errors.JsonMissingGroup;
         }
 
         // Attempt to grab connections
 
-        errdefer std.log.err("ERROR| Unable to parse connection for object [{s}]", .{obj_name});
+        errdefer std.log.err("Unable to parse connection for object [{s}]", .{obj_name});
 
         if (contents.object.get("connections_in")) |connection_json| {
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
@@ -150,7 +150,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             .Motion1DOF => |impl| impl.add_connection(plug),
             .Motion3DOF => |impl| impl.add_connection(plug),
             inline else => {
-                std.log.err("ERROR| Failed to connect [{s}] to [{s}]", .{plug.name(), socket.name()});
+                std.log.err("Failed to connect [{s}] to [{s}]", .{plug.name(), socket.name()});
                 return errors.JsonFailedConnection;
             }
         };
@@ -165,7 +165,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
 
 pub fn group_exists(parsed: json.Parsed(json.Value), key: []const u8) !json.Value{
     return parsed.value.object.get(key) orelse {
-        errdefer std.log.err("ERROR| Json does not contain [{s}] please add it", .{key});
+        errdefer std.log.err("Json does not contain [{s}] please add it", .{key});
         return errors.JsonMissingGroup;
     };
 }
@@ -177,12 +177,12 @@ pub fn optional_group_exists(parsed: json.Parsed(json.Value), key: []const u8) ?
 pub fn field(allocator: std.mem.Allocator, comptime T: type, comptime S: type, key: []const u8, contents: std.json.Value) !T{
 
     const object = contents.object.get(key) orelse {
-        std.log.err("ERROR| Attempting to init [{s}] but [{s}] field is missing", .{@typeName(S), key});
+        std.log.err("Attempting to init [{s}] but [{s}] field is missing", .{@typeName(S), key});
         return errors.JsonObjectFieldMissing;
     };
 
     const parsed = std.json.parseFromValue(T, allocator, object, .{}) catch {
-        std.log.err("ERROR| Could not parse field [{s}.{s}] check field matches type [{any}]", .{@typeName(S), key, T});
+        std.log.err("Could not parse field [{s}.{s}] check field matches type [{any}]", .{@typeName(S), key, T});
         return errors.JsonObjectFieldInvalidType;
     };
 
@@ -197,7 +197,7 @@ pub fn optional_field(allocator: std.mem.Allocator, comptime T: type, comptime S
     const object = contents.object.get(key) orelse return null;
 
     const parsed = std.json.parseFromValue(T, allocator, object, .{}) catch {
-        std.log.err("ERROR| Could not parse field [{s}.{s}] check field matches type [{any}]", .{@typeName(S), key, T});
+        std.log.err("Could not parse field [{s}.{s}] check field matches type [{any}]", .{@typeName(S), key, T});
         return errors.JsonObjectFieldInvalidType;
     };
 
@@ -210,12 +210,12 @@ pub fn optional_field(allocator: std.mem.Allocator, comptime T: type, comptime S
 pub fn string_field(allocator: std.mem.Allocator, comptime S: type, key: []const u8, contents: std.json.Value) ![]const u8{
 
     const object = contents.object.get(key) orelse {
-        std.log.err("ERROR| Attempting to init [{s}] but [{s}] field is missing", .{@typeName(S), key});
+        std.log.err("Attempting to init [{s}] but [{s}] field is missing", .{@typeName(S), key});
         return errors.JsonObjectFieldMissing;
     };
 
     const parsed = std.json.parseFromValue([]const u8, allocator, object,.{}) catch {
-        std.log.err("ERROR| Could not parse field [{s}.{s}] check field matches type [{any}]", .{@typeName(S), key, []const u8});
+        std.log.err("Could not parse field [{s}.{s}] check field matches type [{any}]", .{@typeName(S), key, []const u8});
         return errors.JsonObjectFieldInvalidType;
     };
 

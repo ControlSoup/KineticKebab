@@ -19,7 +19,7 @@ pub const Force = union(enum) {
             Force.Simple => |_| return,
             inline else => |f| {
                 if (f.position_ptr) |_| {
-                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
+                    std.log.err("Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
                     return sim.errors.AlreadyConnected;
                 } else {
                     f.*.position_ptr = connection;
@@ -93,7 +93,7 @@ pub const Spring = struct {
     pub fn get_force(self: *Spring) !f64 {
 
         if (self.position_ptr == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
+            std.log.err("Object[{s}] is missing a connection", .{self.name});
             return sim.errors.MissingConnection; 
         }
 

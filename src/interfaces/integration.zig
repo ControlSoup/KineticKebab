@@ -167,7 +167,7 @@ pub const IntegrationMethod = enum{
             return Self.Rk4Adaptive;
         }
         else {
-            std.log.err("ERROR| Invalid IntegrationMethod$ {s}", .{method_str});
+            std.log.err("Invalid IntegrationMethod$ {s}", .{method_str});
             return sim.errors.InvalidInput;
         }
     }
@@ -229,7 +229,7 @@ pub const Integrator = struct{
     ) !Self{
 
         if (new_dt <= 0.0) {
-            std.log.err("ERROR| intial_dt input must be >= 0", .{});
+            std.log.err("intial_dt input must be >= 0", .{});
             return sim.errors.InputLessThanZero;
         }
 

@@ -20,7 +20,7 @@ pub const Force = union(enum) {
             .Simple => |_| return,
             // .TVCSimple => |f| {
             //     if (f.body_force.cg_ptr) |_| {
-            //         std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
+            //         std.log.err("Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
             //         return sim.errors.AlreadyConnected;
             //     } else {
             //         f.*.body_force.cg_ptr = connection;
@@ -28,7 +28,7 @@ pub const Force = union(enum) {
             // },
             inline else => |f| {
                 if (f.cg_ptr) |_| {
-                    std.log.err("ERROR| Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
+                    std.log.err("Object[{s}] is already connected to [{s}]", .{ f.*.name, connection.name });
                     return sim.errors.AlreadyConnected;
                 } else {
                     f.*.cg_ptr = connection;
@@ -192,7 +192,7 @@ pub const BodySimple = struct {
 
     pub fn get_force_moment_arr(self: *Self) ![3]f64{
         if (self.cg_ptr == null){
-            std.log.err("ERROR| Object[{s}] is missing a connection", .{self.name});
+            std.log.err("Object[{s}] is missing a connection", .{self.name});
             return sim.errors.MissingConnection; 
         }
 
