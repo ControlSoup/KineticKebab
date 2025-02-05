@@ -3,6 +3,7 @@ const sim = @import("../sim.zig");
 pub const Updatable = union(enum) {
     const Self = @This();
 
+    RuntankWorkingFluid: *sim.volumes.RuntankWorkingFluid, // Ullage is updated through working fluid
     Static: *sim.volumes.Static,
     Void: *sim.volumes.Void,
 

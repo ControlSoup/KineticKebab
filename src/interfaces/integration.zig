@@ -8,6 +8,8 @@ pub const Integratable = union(enum) {
     Motion3DOF: *sim.motions.d3.Motion,
     Motion1DOF: *sim.motions.d1.Motion,
     Static: *sim.volumes.Static,
+    RuntankUllage: *sim.volumes.RuntankUllage,
+    RuntankWorkingFluid: *sim.volumes.RuntankWorkingFluid,
 
     pub const RESULT = struct{
         rel_err: f64,

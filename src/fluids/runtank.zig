@@ -3,7 +3,7 @@ const sim = @import("../sim.zig");
 const volumes = @import("volumes.zig");
 const MAX_STATE_LEN = sim.interfaces.MAX_STATE_LEN;
 
-const RuntankUllage = struct{
+pub const RuntankUllage = struct{
     const Self = @This();
     pub const header = [_][]const u8{
         "press [Pa]", 
@@ -26,7 +26,7 @@ const RuntankUllage = struct{
     inenergy: f64,
     connections_in: std.ArrayList(sim.restrictions.Restriction),
     connections_out: std.ArrayList(sim.restrictions.Restriction),
-    working_connection: *RuntankWorkingFluid,
+    working_connection: ?*RuntankWorkingFluid = null,
 
     net_mdot: f64 = 0.0,
     net_inenergy_dot: f64 = 0.0,
@@ -100,19 +100,15 @@ const RuntankUllage = struct{
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.Static = self};
-    }
-
-    pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
-        return sim.interfaces.Updatable{.Static = self};
+        return sim.SimObject{.RuntankUllage = self};
     }
 
     pub fn as_integratable(self: *Self) sim.interfaces.Integratable{
-        return sim.interfaces.Integratable{.Static = self};
+        return sim.interfaces.Integratable{.RuntankUllage = self};
     }
 
     pub fn as_volume(self: *Self) volumes.Volume{
-        return volumes.Volume{.Static = self};
+        return volumes.Volume{.RuntankUllage = self};
     }
 
     // =========================================================================
@@ -147,11 +143,7 @@ const RuntankUllage = struct{
         self.net_inenergy_dot = save_array[10]; 
     }
 
-    // =========================================================================
-    // Updateable Methods
-    // =========================================================================
-
-    pub fn update(self: *Self) !void{
+    pub fn ullage_update(self: *Self) !void{
 
 
         self.mdot_in = 0.0;
@@ -205,6 +197,7 @@ const RuntankUllage = struct{
     pub fn set_state(self: *Self, integrated_state: [MAX_STATE_LEN]f64) void {
         self.mass = integrated_state[1];
         self.inenergy = integrated_state[3];
+        self.volume = integrated_state[5];
     }
 
     pub fn get_state(self: *Self) [MAX_STATE_LEN]f64 {
@@ -222,19 +215,20 @@ const RuntankUllage = struct{
             0.0, 
             state[0], 
             0.0,
-            state[2] 
+            state[2],
         } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 4));
     }
 
 };
 
 
-const RuntankWorkingFluid = struct{
+pub const RuntankWorkingFluid = struct{
     const Self = @This();
     pub const header = [_][]const u8{
         "press [Pa]", 
         "temp [degK]", 
         "mass [kg]", 
+        "volume_volume [m^3]", 
         "volume_capacity [m^3]", 
         "inenergy [J]",
         "mdot_in [kg/s]",
@@ -247,7 +241,6 @@ const RuntankWorkingFluid = struct{
 
     name: []const u8,
     intrinsic: sim.intrinsic.FluidState,
-    area: f64,
     mass: f64,
     volume: f64,
     volume_capacity: f64,
@@ -255,8 +248,8 @@ const RuntankWorkingFluid = struct{
     connections_in: std.ArrayList(sim.restrictions.Restriction),
     connections_out: std.ArrayList(sim.restrictions.Restriction),
 
-    vdot: f64 = 0.0,
     ullage_connection: ?*RuntankUllage = null, 
+    vdot: f64 = 0.0,
     net_mdot: f64 = 0.0,
     net_inenergy_dot: f64 = 0.0,
     mdot_in: f64 = 0.0,
@@ -269,7 +262,6 @@ const RuntankWorkingFluid = struct{
         name: []const u8, 
         press: f64, 
         temp: f64, 
-        area: f64,
         fill_frac: f64,
         volume_capacity: f64,
         fluid: sim.intrinsic.FluidLookup
@@ -300,16 +292,14 @@ const RuntankWorkingFluid = struct{
         const mass: f64 = state.density * volume;
         const inenergy: f64 = state.sp_inenergy * mass;
         return Self{
-            .allocator = allocaator, 
             .name = name, 
-            .area = area,
             .mass = mass,
             .inenergy = inenergy,
             .volume = volume,
             .volume_capacity = volume_capacity,
             .intrinsic = state,
-            .connection_in = std.ArrayList(sim.restrictions.Restriction).init(allocator),
-            .connection_out = std.ArrayList(sim.restrictions.Restriction).init(allocator),
+            .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator),
+            .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator),
 
         };
     }
@@ -371,28 +361,30 @@ const RuntankWorkingFluid = struct{
         save_array[0] = self.intrinsic.press;
         save_array[1] = self.intrinsic.temp;
         save_array[2] = self.mass;
-        save_array[3] = self.volume_capacity;
-        save_array[4] = self.inenergy;
-        save_array[5] = self.mdot_in;
-        save_array[6] = self.mdot_out;
-        save_array[7] = self.net_mdot;
-        save_array[8] = self.hdot_in;
-        save_array[9] = self.hdot_out;
-        save_array[10] = self.net_inenergy_dot;
+        save_array[3] = self.volume;
+        save_array[4] = self.volume_capacity;
+        save_array[5] = self.inenergy;
+        save_array[6] = self.mdot_in;
+        save_array[7] = self.mdot_out;
+        save_array[8] = self.net_mdot;
+        save_array[9] = self.hdot_in;
+        save_array[10] = self.hdot_out;
+        save_array[11] = self.net_inenergy_dot;
     }
     
     pub fn set_vals(self: *Self, save_array: []f64) void {
         self.intrinsic.press = save_array[0];
         self.intrinsic.temp = save_array[1];
         self.mass = save_array[2];
-        self.volume_capacity = save_array[3];
-        self.inenergy = save_array[4]; 
-        self.mdot_in = save_array[5]; 
-        self.mdot_out = save_array[6]; 
-        self.net_mdot = save_array[7]; 
-        self.hdot_in = save_array[8]; 
-        self.hdot_out = save_array[9]; 
-        self.net_inenergy_dot = save_array[10]; 
+        self.volume = save_array[4];
+        self.volume_capacity = save_array[4];
+        self.inenergy = save_array[5]; 
+        self.mdot_in = save_array[6]; 
+        self.mdot_out = save_array[7]; 
+        self.net_mdot = save_array[8]; 
+        self.hdot_in = save_array[9]; 
+        self.hdot_out = save_array[10]; 
+        self.net_inenergy_dot = save_array[11]; 
     }
 
     // =========================================================================
@@ -402,10 +394,14 @@ const RuntankWorkingFluid = struct{
     pub fn update(self: *Self) !void{
         
         if (self.ullage_connection == null){
-            std.log.err("[{s}] is missing a ullage connection", .{self.name})
+            std.log.err("[{s}] is missing a ullage connection", .{self.name});
             return sim.errors.MissingConnection;
         }
 
+        // Update Ullage + Sync pressures (No heat transfer between ullage and runtank)
+        self.ullage_connection.?.volume = self.volume_capacity - self.volume;
+        try self.ullage_connection.?.ullage_update();
+        self.intrinsic.update_from_pt(self.ullage_connection.?.intrinsic.press, self.intrinsic.temp);
 
         // Get all the mdots and enthalpies coming in
         self.mdot_in = 0.0;
@@ -444,10 +440,11 @@ const RuntankWorkingFluid = struct{
         }
 
 
-        // Continuity Equation (ingoring head and velocity)
+        // Continuity Equation (ingoring head and velocity) + Work from ullage
         self.net_mdot = self.mdot_in - self.mdot_out;
-        self.net_inenergy_dot = (self.mdot_in * self.hdot_in) - (self.mdot_out * self.hdot_out);
+        self.vdot = self.net_mdot / self.intrinsic.density;
 
+        self.net_inenergy_dot = (self.mdot_in * self.hdot_in) - (self.mdot_out * self.hdot_out) + (self.vdot * self.ullage_connection.?.intrinsic.press);
 
         // State update
         self.intrinsic.update_from_du(self.mass / self.volume_capacity, self.inenergy / self.mass);
@@ -460,25 +457,30 @@ const RuntankWorkingFluid = struct{
     pub fn set_state(self: *Self, integrated_state: [MAX_STATE_LEN]f64) void {
         self.mass = integrated_state[1];
         self.inenergy = integrated_state[3];
+        self.volume = integrated_state[5];
     }
 
     pub fn get_state(self: *Self) [MAX_STATE_LEN]f64 {
-        return [4]f64{
+        return [_]f64{
             self.net_mdot, 
             self.mass, 
             self.net_inenergy_dot,
-            self.inenergy
-        } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 4));
+            self.inenergy,
+            self.vdot,
+            self.volume
+        } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 6));
     }
 
     pub fn get_dstate(self: *Self, state: [MAX_STATE_LEN]f64) [MAX_STATE_LEN]f64 {
         _ = self;
-        return [4]f64{
+        return [_]f64{
             0.0, 
             state[0], 
             0.0,
-            state[2] 
-        } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 4));
+            state[2],
+            0.0,
+            state[4] 
+        } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 6));
     }
 
     // =========================================================================
@@ -487,15 +489,17 @@ const RuntankWorkingFluid = struct{
 
     pub fn connect_ullage(self: *Self, ullage: *RuntankUllage) !void{
         if (self.ullage_connection != null){
-            std.log.err("[{s}] is already to [{s}], can't connect to [{s}]", .{self.name, self.ullage_connection, ullage.name});
+            std.log.err("[{s}] is already to [{s}], can't connect to [{s}]", .{self.name, self.ullage_connection.?.name, ullage.name});
             return sim.errors.AlreadyConnected;
         }
 
         if (ullage.*.working_connection != null){
-            std.log.err("[{s}] is already to [{s}], can't connect to [{s}]", .{ullage.name, ullage.working_connection.name, self.name});
+            std.log.err("[{s}] is already to [{s}], can't connect to [{s}]", .{ullage.name, ullage.working_connection.?.name, self.name});
             return sim.errors.AlreadyConnected;
         }
         self.ullage_connection = ullage;
+        ullage.volume = self.volume_capacity  - self.volume;
+        self.intrinsic.update_from_pt(self.ullage_connection.?.intrinsic.press, self.intrinsic.temp);
         ullage.*.working_connection = self;
     }
 

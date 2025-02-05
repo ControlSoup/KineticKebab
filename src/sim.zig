@@ -31,6 +31,8 @@ pub const SimObject = union(enum) {
     const Self = @This();
 
     // Fluids
+    RuntankUllage: *volumes.RuntankUllage,
+    RuntankWorkingFluid: *volumes.RuntankWorkingFluid,
     ConstantMdot: *restrictions.ConstantMdot,
     Orifice: *restrictions.Orifice,
     Void: *volumes.Void,
@@ -93,6 +95,8 @@ pub const SimObject = union(enum) {
             .Orifice => restrictions.Orifice.header[0..],
             .Void => volumes.Void.header[0..],
             .Static => volumes.Static.header[0..],
+            .RuntankUllage => volumes.RuntankUllage.header[0..],
+            .RuntankWorkingFluid => volumes.RuntankWorkingFluid.header[0..],
 
             // 1DOF
             .Simple1DOF => forces.d1.Simple.header[0..],
@@ -116,6 +120,8 @@ pub const SimObject = union(enum) {
             // Fluids
             .ConstantMdot => restrictions.ConstantMdot.header.len,
             .Orifice => restrictions.Orifice.header.len,
+            .RuntankUllage => volumes.RuntankUllage.header.len,
+            .RuntankWorkingFluid=> volumes.RuntankWorkingFluid.header.len,
             .Void => volumes.Void.header.len,
             .Static => volumes.Static.header.len,
 

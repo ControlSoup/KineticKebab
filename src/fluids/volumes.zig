@@ -1,12 +1,16 @@
 const std = @import("std");
 const sim = @import("../sim.zig");
 const MAX_STATE_LEN = sim.interfaces.MAX_STATE_LEN;
-
+pub const RuntankUllage = @import("runtank.zig").RuntankUllage;
+pub const RuntankWorkingFluid = @import("runtank.zig").RuntankWorkingFluid;
+ 
 pub const Volume = union(enum) {
     const Self = @This();
 
     Void: *Void,
     Static: *Static,
+    RuntankUllage: *RuntankUllage,
+    RuntankWorkingFluid: *RuntankWorkingFluid,
 
     pub fn get_intrinsic(self: *const Self) sim.intrinsic.FluidState{
         switch (self.*){

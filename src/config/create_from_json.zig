@@ -15,6 +15,7 @@ pub const errors = error{
 pub const ConnectionType = enum{
     In,
     Out,
+    Ullage
 };
 
 pub const Connection = struct{
@@ -74,6 +75,18 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
             try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
         }
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.volumes.RuntankUllage))){
+            const new_obj_ptr = try sim.volumes.RuntankUllage.from_json(allocator, contents);
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
+            // Updates are taken care of in the working fluid connection
+        }
+        else if (std.mem.eql(u8, obj_name, @typeName(sim.volumes.RuntankWorkingFluid))){
+            const new_obj_ptr = try sim.volumes.RuntankWorkingFluid.from_json(allocator, contents);
+            try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+            try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
+            try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
+        }
         else if (std.mem.eql(u8, obj_name, @typeName(sim.restrictions.Orifice))){
             const new_obj_ptr = try sim.restrictions.Orifice.from_json(allocator, contents);
             try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
@@ -102,8 +115,8 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         }
 
         // Attempt to grab connections
-
-        errdefer std.log.err("Unable to parse connection for object [{s}]", .{obj_name});
+        const lastest_object = new_sim_ptr.sim_objs.items[new_sim_ptr.sim_objs.items.len - 1];
+        errdefer std.log.err("Unable to parse connection for object [{s}]", .{lastest_object.name()});
 
         if (contents.object.get("connections_in")) |connection_json| {
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
@@ -111,21 +124,28 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             };
 
             for (connections.value) |connection|{
-                const latest_added_obj = new_sim_ptr.sim_objs.items[new_sim_ptr.sim_objs.items.len - 1].name();
-                try all_connections.append(Connection.new(connection, latest_added_obj, .In));
+                try all_connections.append(Connection.new(connection, lastest_object.name(), .In));
             }
         } 
-        else if (contents.object.get("connections_out")) |connection_json| {
+        if (contents.object.get("connections_out")) |connection_json| {
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
                 return errors.JsonConnectionListParseError;
             };
 
             for (connections.value) |connection|{
-                const latest_added_obj = new_sim_ptr.sim_objs.items[new_sim_ptr.sim_objs.items.len - 1].name();
-                try all_connections.append(Connection.new(connection, latest_added_obj, .Out));
+                try all_connections.append(Connection.new(connection, lastest_object.name(), .Out));
             }
 
         }
+        if (contents.object.get("ullage_connection")) |connection_json| {
+            const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
+                return errors.JsonConnectionListParseError;
+            };
+
+            for (connections.value) |connection|{
+                try all_connections.append(Connection.new(connection, lastest_object.name(), .Ullage));
+            }
+        } 
     }
 
     // Add simulation info
@@ -137,22 +157,44 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         const socket: sim.SimObject = try new_sim_ptr.get_sim_object_by_name(connection_event.socket);
         const connection_type = connection_event.connection_type;
 
+        errdefer std.log.err("Failed to connect [{s}] to [{s}]", .{socket.name(), plug.name()});
+
         // Most objects go from plug -> socket
         try switch (socket){
             .Static => |impl| switch(connection_type){
                 .In => try impl.as_volume().add_connection_in(plug),
                 .Out => try impl.as_volume().add_connection_out(plug),
+                inline else => return {
+                    return errors.JsonConnectionTypeInvalid;
+                },
+                
             },
             .Void => |v| switch(connection_type){
                 .In => try v.as_volume().add_connection_in(plug),
                 .Out => try v.as_volume().add_connection_out(plug),
+                inline else => return {
+                    return errors.JsonConnectionTypeInvalid;
+                },
             },
             .Motion1DOF => |impl| impl.add_connection(plug),
             .Motion3DOF => |impl| impl.add_connection(plug),
-            inline else => {
-                std.log.err("Failed to connect [{s}] to [{s}]", .{plug.name(), socket.name()});
-                return errors.JsonFailedConnection;
-            }
+            .RuntankWorkingFluid => |v| switch(connection_type) {
+                .In => try v.as_volume().add_connection_in(plug),
+                .Out => try v.as_volume().add_connection_out(plug),
+                .Ullage => try v.connect_ullage(plug.RuntankUllage),
+            },
+            .RuntankUllage => |v| switch(connection_type){
+                .In => try v.as_volume().add_connection_in(plug),
+                .Out => try v.as_volume().add_connection_out(plug),
+                inline else => return {
+                    return errors.JsonConnectionTypeInvalid;
+                },
+
+            },
+            inline else => return {
+                return errors.JsonConnectionTypeInvalid;
+            },
+            
         };
 
     }
@@ -165,7 +207,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
 
 pub fn group_exists(parsed: json.Parsed(json.Value), key: []const u8) !json.Value{
     return parsed.value.object.get(key) orelse {
-        errdefer std.log.err("Json does not contain [{s}] please add it", .{key});
+        std.log.err("Json does not contain [{s}] please add it", .{key});
         return errors.JsonMissingGroup;
     };
 }
