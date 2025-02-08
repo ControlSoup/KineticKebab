@@ -5,8 +5,8 @@ const MAX_STATE_LEN = sim.interfaces.MAX_STATE_LEN;
 pub const Volume = union(enum) {
     const Self = @This();
 
-    Void: *Void,
-    Static: *Static,
+    VoidVolume: *VoidVolume,
+    StaticVolume: *StaticVolume,
 
     pub fn get_intrinsic(self: *const Self) sim.intrinsic.FluidState{
         switch (self.*){
@@ -33,7 +33,7 @@ pub const Volume = union(enum) {
     }
 };
 
-pub const Void = struct{
+pub const VoidVolume = struct{
     const Self = @This();
     pub const header = [_][]const u8{"press [Pa]", "temp [degK]"};
 
@@ -54,7 +54,7 @@ pub const Void = struct{
             return sim.errors.InvalidInput;
         }
 
-        return Void{
+        return VoidVolume{
             .name = name,
             .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp),
             .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator),
@@ -92,15 +92,15 @@ pub const Void = struct{
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.Void = self};
+        return sim.SimObject{.VoidVolume = self};
     }
 
     pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
-        return sim.interfaces.Updatable{.Void = self};
+        return sim.interfaces.Updatable{.VoidVolume = self};
     }
 
     pub fn as_volume(self: *Self) Volume{
-        return Volume{.Void = self};
+        return Volume{.VoidVolume = self};
     }
 
     // =========================================================================
@@ -133,7 +133,7 @@ pub const Void = struct{
     }
 };
 
-pub const Static = struct{
+pub const StaticVolume = struct{
     const Self = @This();
     pub const header = [_][]const u8{
         "press [Pa]", 
@@ -229,19 +229,19 @@ pub const Static = struct{
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.Static = self};
+        return sim.SimObject{.StaticVolume = self};
     }
 
     pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
-        return sim.interfaces.Updatable{.Static = self};
+        return sim.interfaces.Updatable{.StaticVolume = self};
     }
 
     pub fn as_integratable(self: *Self) sim.interfaces.Integratable{
-        return sim.interfaces.Integratable{.Static = self};
+        return sim.interfaces.Integratable{.StaticVolume = self};
     }
 
     pub fn as_volume(self: *Self) Volume{
-        return Volume{.Static = self};
+        return Volume{.StaticVolume = self};
     }
 
     // =========================================================================

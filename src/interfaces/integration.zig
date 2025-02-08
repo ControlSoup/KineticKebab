@@ -6,8 +6,8 @@ pub const Integratable = union(enum) {
     const Self = @This();
 
     Motion3DOF: *sim.motions.d3.Motion,
-    Motion1DOF: *sim.motions.d1.Motion,
-    Static: *sim.volumes.Static,
+    Motion: *sim.motions.d1.Motion,
+    StaticVolume: *sim.volumes.StaticVolume,
 
     pub const RESULT = struct{
         rel_err: f64,
@@ -157,19 +157,10 @@ pub const IntegrationMethod = enum{
     Rk4Adaptive,
 
     pub fn from_str(method_str: []const u8) !Self{
-        if (std.mem.eql(u8, method_str, "Euler")){
-            return Self.Euler;
-        }
-        else if (std.mem.eql(u8, method_str, "Rk4")){
-            return Self.Rk4;
-        }
-        else if (std.mem.eql(u8, method_str, "Rk4Adaptive")){
-            return Self.Rk4Adaptive;
-        }
-        else {
+        return std.meta.stringToEnum(Self, method_str) orelse {
             std.log.err("Invalid IntegrationMethod$ {s}", .{method_str});
             return sim.errors.InvalidInput;
-        }
+        };
     }
 };
 

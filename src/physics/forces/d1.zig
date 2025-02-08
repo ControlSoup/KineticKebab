@@ -63,7 +63,7 @@ pub const Spring = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Spring1DOF = self };
+        return sim.SimObject{.SpringForce = self };
     }
 
     pub fn as_force(self: *Self) Force{
@@ -133,7 +133,7 @@ pub const Simple = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Simple1DOF = self};
+        return sim.SimObject{.SimpleForce = self};
     }
 
     pub fn as_force(self: *Self) Force{

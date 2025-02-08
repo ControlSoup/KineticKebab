@@ -21,7 +21,7 @@ test "Blowdown"{
     \\    },
     \\    "SimObjects":[
     \\        {
-    \\            "object": "fluids.volumes.Static",
+    \\            "object": "StaticVolume",
     \\            "name": "UpstreamTest",
     \\            "press": 200000,
     \\            "temp": 277,
@@ -30,13 +30,13 @@ test "Blowdown"{
     \\            "connections_out": ["TestOrifice"]
     \\        },
     \\        {
-    \\            "object": "fluids.restrictions.Orifice",
+    \\            "object": "Orifice",
     \\            "name": "TestOrifice",
     \\            "cda": 0.075,
     \\            "mdot_method": "IdealCompressible"
     \\        },
     \\        {
-    \\            "object": "fluids.volumes.Void",
+    \\            "object": "VoidVolume",
     \\            "name": "DownstreamTest",
     \\            "press": 100000,
     \\            "temp": 277,

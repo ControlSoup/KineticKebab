@@ -1,7 +1,7 @@
 const std = @import("std");
 const sim = @import("../sim.zig");
 
-test "Motion1DOF"{
+test "Motion"{
     // ========================================================================= 
     // Allocation
     // ========================================================================= 
@@ -22,14 +22,14 @@ test "Motion1DOF"{
     \\    },
     \\    "SimObjects":[
     \\        {
-    \\            "object": "physics.motions.d1.Motion",
+    \\            "object": "Motion",
     \\            "name": "TestSimpleOnly",
     \\            "pos": 0.0,
     \\            "mass": 1.0,
     \\            "connections_in": ["TestSimple"]
     \\        },
     \\        {
-    \\            "object": "physics.forces.d1.Simple",
+    \\            "object": "Simple",
     \\            "name": "TestSimple",
     \\            "force": 1.0
     \\        }    

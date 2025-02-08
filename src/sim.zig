@@ -6,14 +6,14 @@ pub const math = @import("math/math.zig");
 pub const coolprop = @import("3rdparty/coolprop.zig");
 pub const intrinsic = @import("fluids/intrinsic.zig");
 
+pub const interfaces = @import("interfaces/interfaces.zig");
+pub const fluids_equations = @import("fluids/equations/equations.zig");
+
 // Objects
 pub const forces = @import("physics/forces/forces.zig");
 pub const motions = @import("physics/motions/motions.zig");
 pub const volumes = @import("fluids/volumes.zig");
 pub const restrictions = @import("fluids/restrictions.zig");
-
-// Interfaces
-pub const interfaces = @import("interfaces/interfaces.zig");
 
 pub const errors = parse.errors || error{
     SimObjectDuplicate,
@@ -33,17 +33,17 @@ pub const SimObject = union(enum) {
     // Fluids
     ConstantMdot: *restrictions.ConstantMdot,
     Orifice: *restrictions.Orifice,
-    Void: *volumes.Void,
-    Static: *volumes.Static,
+    VoidVolume: *volumes.VoidVolume,
+    StaticVolume: *volumes.StaticVolume,
 
     // 1DOF
-    Simple1DOF: *forces.d1.Simple,
-    Spring1DOF: *forces.d1.Spring,
-    Motion1DOF: *motions.d1.Motion,
+    SimpleForce: *forces.d1.Simple,
+    SpringForce: *forces.d1.Spring,
+    Motion: *motions.d1.Motion,
 
     // 3DOF
-    Simple3DOF: *forces.d3.Simple,
-    BodySimple3DOF: *forces.d3.BodySimple,
+    SimpleForce3DOF: *forces.d3.Simple,
+    BodySimpleForce3DOF: *forces.d3.BodySimple,
     Motion3DOF: *motions.d3.Motion,
 
     // Sim
@@ -62,8 +62,8 @@ pub const SimObject = union(enum) {
 
     pub fn as_d1force(self: *const Self) !forces.d1.Force{
         return switch (self.*){
-            .Simple1DOF => |impl| impl.as_force(),
-            .Spring1DOF => |impl| impl.as_force(),
+            .SimpleForce => |impl| impl.as_force(),
+            .SpringForce => |impl| impl.as_force(),
             inline else => errors.InvalidInterface
         };
     }
@@ -71,8 +71,8 @@ pub const SimObject = union(enum) {
     pub fn as_d3force(self: *const Self) !forces.d3.Force{
         return switch (self.*){
             // 3DOF
-            .Simple3DOF => |impl| impl.as_force(),
-            .BodySimple3DOF => |impl| impl.as_force(),
+            .SimpleForce3DOF => |impl| impl.as_force(),
+            .BodySimpleForce3DOF => |impl| impl.as_force(),
             inline else => errors.InvalidInterface
         };
     }
@@ -91,17 +91,17 @@ pub const SimObject = union(enum) {
             // Fluids
             .ConstantMdot => restrictions.ConstantMdot.header[0..],
             .Orifice => restrictions.Orifice.header[0..],
-            .Void => volumes.Void.header[0..],
-            .Static => volumes.Static.header[0..],
+            .VoidVolume => volumes.VoidVolume.header[0..],
+            .StaticVolume => volumes.StaticVolume.header[0..],
 
             // 1DOF
-            .Simple1DOF => forces.d1.Simple.header[0..],
-            .Spring1DOF => forces.d1.Spring.header[0..],
-            .Motion1DOF => motions.d1.Motion.header[0..],
+            .SimpleForce => forces.d1.Simple.header[0..],
+            .SpringForce => forces.d1.Spring.header[0..],
+            .Motion => motions.d1.Motion.header[0..],
 
             // 3DOF
-            .Simple3DOF => forces.d3.Simple.header[0..],
-            .BodySimple3DOF => forces.d3.BodySimple.header[0..],
+            .SimpleForce3DOF => forces.d3.Simple.header[0..],
+            .BodySimpleForce3DOF => forces.d3.BodySimple.header[0..],
             .Motion3DOF => motions.d3.Motion.header[0..],
 
             // Misc
@@ -116,17 +116,17 @@ pub const SimObject = union(enum) {
             // Fluids
             .ConstantMdot => restrictions.ConstantMdot.header.len,
             .Orifice => restrictions.Orifice.header.len,
-            .Void => volumes.Void.header.len,
-            .Static => volumes.Static.header.len,
+            .VoidVolume => volumes.VoidVolume.header.len,
+            .StaticVolume => volumes.StaticVolume.header.len,
 
             // 1DOF
-            .Simple1DOF => forces.d1.Simple.header.len,
-            .Spring1DOF => forces.d1.Spring.header.len,
-            .Motion1DOF => motions.d1.Motion.header.len,
+            .SimpleForce => forces.d1.Simple.header.len,
+            .SpringForce => forces.d1.Spring.header.len,
+            .Motion => motions.d1.Motion.header.len,
 
             // 3DOF
-            .Simple3DOF => forces.d3.Simple.header.len,
-            .BodySimple3DOF => forces.d3.BodySimple.header.len,
+            .SimpleForce3DOF => forces.d3.Simple.header.len,
+            .BodySimpleForce3DOF => forces.d3.BodySimple.header.len,
             .Motion3DOF => motions.d3.Motion.header.len,
 
             //Misc

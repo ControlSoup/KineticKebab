@@ -64,15 +64,15 @@ pub const Motion = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .Motion1DOF = self};
+        return sim.SimObject{ .Motion = self};
     }
 
     pub fn as_updateable(self: *Self) sim.interfaces.Updatable {
-        return sim.interfaces.Updatable{.Motion1DOF = self};
+        return sim.interfaces.Updatable{.Motion = self};
     }
 
     pub fn as_integratable(self: *Self) sim.interfaces.Integratable {
-        return sim.interfaces.Integratable{ .Motion1DOF = self};
+        return sim.interfaces.Integratable{ .Motion = self};
     }
 
     // =========================================================================

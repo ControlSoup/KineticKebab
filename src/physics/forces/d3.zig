@@ -79,7 +79,7 @@ pub const Simple = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Simple3DOF = self};
+        return sim.SimObject{.SimpleForce3DOF = self};
     }
 
     pub fn as_force(self: *Self) Force{
@@ -154,7 +154,7 @@ pub const BodySimple = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .BodySimple3DOF = self};
+        return sim.SimObject{ .BodySimpleForce3DOF = self};
     }
 
     pub fn as_force(self: *Self) sim.forces.d3.Force{

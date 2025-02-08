@@ -20,7 +20,7 @@ test "TransientOrificeFlow"{
     \\    },
     \\    "SimObjects":[
     \\        {
-    \\            "object": "fluids.volumes.Void",
+    \\            "object": "VoidVolume",
     \\            "name": "UpstreamTest",
     \\            "press": 150000,
     \\            "temp": 277,
@@ -28,13 +28,13 @@ test "TransientOrificeFlow"{
     \\            "connections_out": ["TestUnchokedOrifice"]
     \\        },
     \\        {
-    \\            "object": "fluids.restrictions.Orifice",
+    \\            "object": "Orifice",
     \\            "name": "TestUnchokedOrifice",
     \\            "cda": 1.0,
     \\            "mdot_method": "IdealCompressible"
     \\        },
     \\        {
-    \\            "object": "fluids.volumes.Void",
+    \\            "object": "VoidVolume",
     \\            "name": "DownstreamTest",
     \\            "press": 200000,
     \\            "temp": 277,
@@ -56,16 +56,16 @@ test "TransientOrificeFlow"{
     _ = uch_orifice;
 
     const us: sim.SimObject = try model.get_sim_object_by_name("UpstreamTest");
-    const us_state = us.Void.as_volume().get_intrinsic();
+    const us_state = us.VoidVolume.as_volume().get_intrinsic();
     
     const ds: sim.SimObject = try model.get_sim_object_by_name("DownstreamTest");
-    _ = ds.Void.as_volume().get_intrinsic();
+    _ = ds.VoidVolume.as_volume().get_intrinsic();
     
     const uch_ds: sim.SimObject = try model.get_sim_object_by_name("DownstreamTest");
-    const uch_ds_state = uch_ds.Void.as_volume().get_intrinsic();
+    const uch_ds_state = uch_ds.VoidVolume.as_volume().get_intrinsic();
 
 
-    const uch_mdot = -sim.restrictions.ideal_unchoked_mdot(
+    const uch_mdot = -sim.fluids_equations.orifice.ideal_unchoked_mdot(
         try model.get_value_by_name("TestUnchokedOrifice.cda [m^2]"),
         uch_ds_state.density,
         uch_ds_state.press,

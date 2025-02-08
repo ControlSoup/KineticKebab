@@ -100,19 +100,19 @@ const RuntankUllage = struct{
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.Static = self};
+        return sim.SimObject{.StaticVolume = self};
     }
 
     pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
-        return sim.interfaces.Updatable{.Static = self};
+        return sim.interfaces.Updatable{.StaticVolume = self};
     }
 
     pub fn as_integratable(self: *Self) sim.interfaces.Integratable{
-        return sim.interfaces.Integratable{.Static = self};
+        return sim.interfaces.Integratable{.StaticVolume = self};
     }
 
     pub fn as_volume(self: *Self) volumes.Volume{
-        return volumes.Volume{.Static = self};
+        return volumes.Volume{.StaticVolume = self};
     }
 
     // =========================================================================

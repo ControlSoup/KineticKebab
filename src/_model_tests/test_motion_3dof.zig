@@ -21,7 +21,7 @@ test "Motion3DOF"{
     \\    },
     \\    "SimObjects":[
     \\        {
-    \\            "object": "physics.motions.d3.Motion",
+    \\            "object": "Motion",
     \\            "name": "TestSimpleOnly",
     \\            "pos.x": 0.0,
     \\            "pos.y": 0.0,
@@ -31,14 +31,14 @@ test "Motion3DOF"{
     \\            "connections_in": ["TestSimple"]
     \\        },
     \\        {
-    \\            "object": "physics.forces.d3.Simple",
+    \\            "object": "SimpleForce",
     \\            "name": "TestSimple",
     \\            "force.x": 1.0,
     \\            "force.y": 1.0,
     \\            "moment": 1.0
     \\        },
     \\        {
-    \\            "object": "physics.motions.d3.Motion",
+    \\            "object": "Motion",
     \\            "name": "TestBodySimpleOnly",
     \\            "pos.x": 0.0,
     \\            "pos.y": 0.0,
@@ -48,14 +48,14 @@ test "Motion3DOF"{
     \\            "connections_in": ["TestSimple2", "TestBodySimple"]
     \\        },
     \\        {
-    \\            "object": "physics.forces.d3.Simple",
+    \\            "object": "SimpleForce",
     \\            "name": "TestSimple2",
     \\            "force.x": 0.0,
     \\            "force.y": -1.0,
     \\            "moment": -1.0 
     \\        },
     \\        {
-    \\            "object": "physics.forces.d3.BodySimple",
+    \\            "object": "BodySimpleForce3DOF",
     \\            "name": "TestBodySimple",
     \\            "loc_cg.i": 0.0,
     \\            "loc_cg.j": 0.5,

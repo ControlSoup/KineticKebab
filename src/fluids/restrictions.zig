@@ -59,15 +59,11 @@ pub const MdotMethod = enum{
     IdealCompressible, 
     Incompressible,
 
-    pub fn from_str(str: []const u8, ) !Self{
-        if (std.mem.eql(u8, str, "IdealCompressible")) {
-            return .IdealCompressible;
-        }
-        if (std.mem.eql(u8, str, "Incompressible")) {
-            return .Incompressible;
-        }else{
+    pub fn from_str(lookup_str: []const u8, ) !Self{
+        return std.meta.stringToEnum(Self, lookup_str) orelse {
+            std.log.err("Invalid MdotMethod {s}", .{lookup_str});
             return sim.errors.InvalidInput;
-        }
+        };
     }
 };
 

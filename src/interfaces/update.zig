@@ -3,10 +3,10 @@ const sim = @import("../sim.zig");
 pub const Updatable = union(enum) {
     const Self = @This();
 
-    Static: *sim.volumes.Static,
-    Void: *sim.volumes.Void,
+    StaticVolume: *sim.volumes.StaticVolume,
+    VoidVolume: *sim.volumes.VoidVolume,
 
-    Motion1DOF: *sim.motions.d1.Motion,
+    Motion: *sim.motions.d1.Motion,
 
     Motion3DOF: *sim.motions.d3.Motion,
     
