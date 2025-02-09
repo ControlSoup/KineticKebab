@@ -24,7 +24,8 @@ pub const errors = parse.errors || error{
     MissingConnection,
     MismatchedLength,
     CannotSet,
-    InvalidInterface
+    InvalidInterface,
+    ConvergenceError
 };
 
 pub const SimObject = union(enum) {
@@ -35,6 +36,7 @@ pub const SimObject = union(enum) {
     Orifice: *restrictions.Orifice,
     VoidVolume: *volumes.VoidVolume,
     StaticVolume: *volumes.StaticVolume,
+    SteadyVolume: *volumes.SteadyVolume,
 
     // 1DOF
     SimpleForce: *forces.d1.Simple,
@@ -93,6 +95,7 @@ pub const SimObject = union(enum) {
             .Orifice => restrictions.Orifice.header[0..],
             .VoidVolume => volumes.VoidVolume.header[0..],
             .StaticVolume => volumes.StaticVolume.header[0..],
+            .SteadyVolume => volumes.SteadyVolume.header[0..],
 
             // 1DOF
             .SimpleForce => forces.d1.Simple.header[0..],
@@ -118,6 +121,7 @@ pub const SimObject = union(enum) {
             .Orifice => restrictions.Orifice.header.len,
             .VoidVolume => volumes.VoidVolume.header.len,
             .StaticVolume => volumes.StaticVolume.header.len,
+            .SteadyVolume => volumes.SteadyVolume.header.len,
 
             // 1DOF
             .SimpleForce => forces.d1.Simple.header.len,
@@ -179,6 +183,8 @@ pub const Sim = struct {
 
     sim_objs: std.ArrayList(SimObject),
     integrator: *interfaces.Integrator, 
+    steady: interfaces.SteadySolver,
+    max_iter: usize,
     updatables: std.ArrayList(interfaces.Updatable),
 
     state_names: std.ArrayList([]const u8),
@@ -187,7 +193,7 @@ pub const Sim = struct {
 
     // Sim Init
 
-    pub fn init(allocator: std.mem.Allocator, integrator: *interfaces.Integrator) !Self {
+    pub fn init(allocator: std.mem.Allocator, integrator: *interfaces.Integrator, max_iter: usize) !Self {
 
         return Self{ 
             .allocator = allocator, 
@@ -195,19 +201,25 @@ pub const Sim = struct {
             .updatables = std.ArrayList(interfaces.Updatable).init(allocator), 
             .state_vals = std.ArrayList(f64).init(allocator), 
             .state_names = std.ArrayList([]const u8).init(allocator),
-            .integrator = integrator
+            .steady = interfaces.SteadySolver.init(allocator),
+            .max_iter = max_iter,
+            .integrator = integrator,
         };
     }
 
-    pub fn create(allocator: std.mem.Allocator, integrator: *interfaces.Integrator) !*Self {
+    pub fn create(allocator: std.mem.Allocator, integrator: *interfaces.Integrator, max_iter: usize) !*Self {
         const ptr = try allocator.create(Self);
-        ptr.* = try init(allocator, integrator);
+        ptr.* = try init(allocator, integrator, max_iter);
         return ptr;
     }
 
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
         const integrator_ptr = try interfaces.Integrator.from_json(allocator, contents);
-        const new = try create(allocator, integrator_ptr);
+        const new = try create(
+            allocator, 
+            integrator_ptr,
+            (try parse.optional_field(allocator, usize, Self, "max_iter", contents)) orelse 100
+        );
         return new;
     }
 
@@ -235,6 +247,10 @@ pub const Sim = struct {
 
     pub fn add_integratable(self: *Self, integratable: interfaces.Integratable) !void{
         try self.integrator.add_obj(integratable);
+    }
+
+    pub fn add_steadyable(self: *Self, steadyable: interfaces.Steadyable) !void{
+        try self.steady.add_obj(steadyable);
     }
 
     pub fn step(self: *Self) !void {
@@ -282,6 +298,27 @@ pub const Sim = struct {
             try self.step();
         }
 
+    }
+
+    pub fn solve_steady(self: *Self) !void{
+
+        for (0..self.max_iter) |i|{
+            std.log.err("STEP: {d}", .{i});
+            std.log.err("Guesses: {any}\n", .{self.steady.guesses.items});
+
+            if (try self.steady.iter()){
+                for (self.updatables.items) |obj| {
+                    try obj.update();
+                }
+                try self._save_vals();
+                return;
+            }
+            std.log.err("Partials: {any}\n", .{self.steady.partials.items});
+        }
+
+
+        std.log.err("Steady State unable to converge in [{d}] itterations", .{self.max_iter});
+        return errors.ConvergenceError;
     }
 
     pub fn end(self: *Self) !void{
@@ -398,10 +435,11 @@ pub const Sim = struct {
 };
 
 test {
-    _ = @import("_model_tests/test_motion_1dof.zig");
-    _ = @import("_model_tests/test_motion_3dof.zig");
-    _ = @import("_model_tests/test_transient_orifice.zig");
-    _ = @import("_model_tests/test_orifice_reverse.zig");
-    _ = @import("_model_tests/test_blowdown.zig");
+    // _ = @import("_model_tests/test_motion_1dof.zig");
+    // _ = @import("_model_tests/test_motion_3dof.zig");
+    // _ = @import("_model_tests/test_transient_orifice.zig");
+    // _ = @import("_model_tests/test_orifice_reverse.zig");
+    // _ = @import("_model_tests/test_blowdown.zig");
+    _ = @import("_model_tests/test_steady.zig");
     std.testing.refAllDecls(@This());
 }

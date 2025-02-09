@@ -31,7 +31,7 @@ test "TransientOrificeFlow"{
     \\            "object": "Orifice",
     \\            "name": "TestChokedOrifice",
     \\            "cda": 1.0,
-    \\            "mdot_method": "IdealCompressible"
+    \\            "mdot_method": "IdealIsentropic"
     \\        },
     \\        {
     \\            "object": "ConstantMdot",
@@ -42,7 +42,7 @@ test "TransientOrificeFlow"{
     \\            "object": "Orifice",
     \\            "name": "TestUnchokedOrifice",
     \\            "cda": 1.0,
-    \\            "mdot_method": "IdealCompressible"
+    \\            "mdot_method": "IdealIsentropic"
     \\        },
     \\        {
     \\            "object": "VoidVolume",
