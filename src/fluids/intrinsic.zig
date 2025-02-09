@@ -100,6 +100,24 @@ pub const FluidState = struct{
         }
     }
 
+    pub fn update_from_ph(self: *Self, press: f64, sp_enthalpy: f64) void{
+
+        self.press = press;
+        self.sp_enthalpy = sp_enthalpy;
+
+        switch (self.medium){
+            .CoolProp => |impl| {
+                self.density = sim.coolprop.get_property("D", "P", press, "H", sp_enthalpy, impl);
+                self.temp = sim.coolprop.get_property("T", "P", press, "H", sp_enthalpy, impl);
+                self.sp_inenergy = sim.coolprop.get_property("U", "P", press, "H", sp_enthalpy, impl);
+                self.sp_entropy = sim.coolprop.get_property("S", "P", press, "H", sp_enthalpy, impl);
+                self.sos = sim.coolprop.get_property("A", "P", press, "H", sp_enthalpy, impl);
+                self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", press, "H", sp_enthalpy, impl);
+            },
+            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{})
+        }
+    }
+
     pub fn _print(self: *Self) void{
         std.debug.print("Press : {d:0.5}\n", .{self.press});
         std.debug.print("Temp : {d:0.5}\n", .{self.temp});

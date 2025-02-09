@@ -33,7 +33,7 @@ test "Blowdown"{
     \\            "object": "Orifice",
     \\            "name": "TestOrifice",
     \\            "cda": 0.075,
-    \\            "mdot_method": "IdealCompressible"
+    \\            "mdot_method": "IdealIsentropic"
     \\        },
     \\        {
     \\            "object": "VoidVolume",

@@ -29,7 +29,7 @@ test "Motion"{
     \\            "connections_in": ["TestSimple"]
     \\        },
     \\        {
-    \\            "object": "Simple",
+    \\            "object": "SimpleForce",
     \\            "name": "TestSimple",
     \\            "force": 1.0
     \\        }    

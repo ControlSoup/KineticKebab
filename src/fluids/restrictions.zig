@@ -56,8 +56,9 @@ pub const Restriction = union(enum){
 
 pub const MdotMethod = enum{
     const Self = @This();
-    IdealCompressible, 
+    IdealIsentropic, 
     Incompressible,
+    Debug,
 
     pub fn from_str(lookup_str: []const u8, ) !Self{
         return std.meta.stringToEnum(Self, lookup_str) orelse {
@@ -143,7 +144,7 @@ pub const Orifice = struct{
 
 
         switch (self.mdot_method) {
-            .IdealCompressible =>{ 
+            .IdealIsentropic =>{ 
                 self.is_choked = equations.orifice.ideal_is_choked(state_in.press, state_out.press, state_in.gamma);
                 if (self.is_choked) {
                     self.mdot = equations.orifice.ideal_choked_mdot(self.cda, state_in.density, state_in.press, state_in.gamma);
@@ -154,6 +155,10 @@ pub const Orifice = struct{
             .Incompressible =>{
                 self.is_choked = false;
                 self.mdot = equations.orifice.incompresible_mdot(self.cda, state_in.density, state_in.press, state_out.press);
+            },
+            .Debug => {
+                self.is_choked = false;
+                self.mdot = self.dp * self.cda;
             }
         }
 

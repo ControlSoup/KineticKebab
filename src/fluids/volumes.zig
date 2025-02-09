@@ -1,12 +1,14 @@
 const std = @import("std");
 const sim = @import("../sim.zig");
 const MAX_STATE_LEN = sim.interfaces.MAX_STATE_LEN;
+const MAX_RESIDUALS = sim.interfaces.MAX_RESIDUALS;
 
 pub const Volume = union(enum) {
     const Self = @This();
 
     VoidVolume: *VoidVolume,
     StaticVolume: *StaticVolume,
+    SteadyVolume: *SteadyVolume,
 
     pub fn get_intrinsic(self: *const Self) sim.intrinsic.FluidState{
         switch (self.*){
@@ -45,12 +47,12 @@ pub const VoidVolume = struct{
     pub fn init(allocator: std.mem.Allocator, name: []const u8, press: f64, temp: f64, fluid: sim.intrinsic.FluidLookup) !Self{
 
         if (press < 0.0){
-            std.log.err("Obect [{s}] press [{d:0.3}] is less minimum pressure [{d}]", .{name, press, 0.0});
+            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{name, press, 0.0});
             return sim.errors.InvalidInput;
         }
 
         if (temp < 0.0){
-            std.log.err("Obect [{s}] temp [{d:0.3}] is less minimum pressure [{d}]", .{name, temp, 0.0});
+            std.log.err("Obect [{s}] temp [{d}] is less minimum pressure [{d}]", .{name, temp, 0.0});
             return sim.errors.InvalidInput;
         }
 
@@ -174,12 +176,12 @@ pub const StaticVolume = struct{
     ) !Self{
 
         if (press < 0.0){
-            std.log.err("Obect [{s}] press [{d:0.3}] is less minimum pressure [{d}]", .{name, press, 0.0});
+            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{name, press, 0.0});
             return sim.errors.InvalidInput;
         }
 
         if (temp < 0.0){
-            std.log.err("Obect [{s}] temp [{d:0.3}] is less minimum pressure [{d}]", .{name, temp, 0.0});
+            std.log.err("Obect [{s}] temp [{d}] is less minimum pressure [{d}]", .{name, temp, 0.0});
             return sim.errors.InvalidInput;
         }
 
@@ -354,4 +356,310 @@ pub const StaticVolume = struct{
             state[2] 
         } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 4));
     }
+};
+
+pub const SteadyVolume = struct{   
+    const Self = @This();
+    pub const header = [_][]const u8{
+        "press [Pa]", 
+        "temp [degK]", 
+        "mdot_in [kg/s]",
+        "mdot_out [kg/s]",
+        "net_mdot [kg/s]",
+        "hdot_in [J/kg*s]",
+        "hdot_out [J/kg*s]",
+        "net_hdot [J/kg*s]",
+    };
+
+    name: []const u8,
+    intrinsic: sim.intrinsic.FluidState,
+    connections_in: std.ArrayList(sim.restrictions.Restriction),
+    connections_out: std.ArrayList(sim.restrictions.Restriction),
+
+    // Lookups
+    max_press: f64,
+    max_enthalpy: f64,
+    min_press: f64,
+    min_enthalpy: f64,
+
+    max_press_step_frac: f64,
+    max_enthalpy_step_frac: f64,
+    min_press_step_frac: f64,
+    min_enthalpy_step_frac: f64,
+
+    mdot_tol: f64,
+    hdot_tol: f64,
+
+    net_mdot: f64 = 0.0,
+    net_hdot: f64 = 0.0,
+
+    mdot_in: f64 = 0.0,
+    mdot_out: f64 = 0.0,
+    hdot_in: f64 = 0.0,
+    hdot_out: f64 = 0.0,
+
+    pub fn init(
+        allocator: std.mem.Allocator, 
+        name: []const u8, 
+        press: f64, 
+        temp: f64, 
+        fluid: sim.intrinsic.FluidLookup,
+        max_press: f64,
+        max_press_step_frac: f64,
+        min_press: f64,
+        min_press_step_frac: f64,
+        max_enthalpy: f64,
+        max_enthalpy_step_frac: f64,
+        min_enthalpy: f64,
+        min_enthalpy_step_frac: f64,
+        mdot_tol: f64,
+        hdot_tol: f64
+    ) !Self{
+
+        if (press < 0.0){
+            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{name, press, 0.0});
+            return sim.errors.InvalidInput;
+        }
+
+        if (temp < 0.0){
+            std.log.err("Obect [{s}] temp [{d}] is less min temp [{d}]", .{name, temp, 0.0});
+            return sim.errors.InvalidInput;
+        }
+
+        if (min_press > max_press){
+            std.log.err("Obect [{s}] min press [{d}] is greater max press [{d}]", .{name, min_press, max_press});
+            return sim.errors.InvalidInput;
+        }
+
+        if (min_press_step_frac > max_press_step_frac){
+            std.log.err("Obect [{s}] min press frac [{d}] is greater max press [{d}]", .{name, min_press_step_frac, max_press_step_frac});
+            return sim.errors.InvalidInput;
+        }
+
+        if (max_press < min_press){
+            std.log.err("Obect [{s}] max press [{d}] is less than min press [{d}]", .{name, max_press, min_press});
+            return sim.errors.InvalidInput;
+        }
+
+        if (max_press_step_frac < min_press_step_frac){
+            std.log.err("Obect [{s}] max press step frac [{d}] is less than min press ste frac [{d}]", .{name, max_press_step_frac, min_enthalpy_step_frac});
+            return sim.errors.InvalidInput;
+        }
+
+        if (min_enthalpy > max_enthalpy){
+            std.log.err("Obect [{s}] min enthalpy [{d}] is greater max enthalpy [{d}]", .{name, min_press, max_press});
+            return sim.errors.InvalidInput;
+        }
+
+        if (min_enthalpy_step_frac > max_enthalpy_step_frac){
+            std.log.err("Obect [{s}] min enthalpy step frac [{d}] is greater max enthalpy step frac [{d}]", .{name, min_enthalpy_step_frac, max_enthalpy_step_frac});
+            return sim.errors.InvalidInput;
+        }
+
+        if (max_enthalpy < min_enthalpy){
+            std.log.err("Obect [{s}] max enthalpy [{d}] is less than min enthalpy [{d}]", .{name, max_enthalpy, min_enthalpy});
+            return sim.errors.InvalidInput;
+        }
+
+        if (max_enthalpy_step_frac < min_enthalpy_step_frac){
+            std.log.err("Obect [{s}] max enthalpy step frac [{d}] is less than min enthalpy step frac [{d}]", .{name, max_enthalpy_step_frac, min_enthalpy_step_frac});
+            return sim.errors.InvalidInput;
+        }
+
+        if(mdot_tol < 0.0){
+            std.log.err("Obect [{s}] mdot tolerance[{d}] is less [{d}]", .{name, mdot_tol, 0.0});
+            return sim.errors.InvalidInput;
+        }
+
+        if(hdot_tol < 0.0){
+            std.log.err("Obect [{s}] mdot tolerance[{d}] is less [{d}]", .{name, mdot_tol, 0.0});
+            return sim.errors.InvalidInput;
+        }
+
+
+        return Self{
+            .name = name,
+            .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp), 
+            .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator),
+            .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator),
+            .max_press = max_press,
+            .max_press_step_frac = max_press_step_frac,
+            .min_press = min_press,
+            .min_press_step_frac = min_press_step_frac,
+            .max_enthalpy = max_enthalpy,
+            .max_enthalpy_step_frac = max_enthalpy_step_frac,
+            .min_enthalpy = min_enthalpy,
+            .min_enthalpy_step_frac = min_enthalpy_step_frac,
+            .mdot_tol = mdot_tol,
+            .hdot_tol = hdot_tol,
+        };
+    }
+
+    pub fn create(
+        allocator: std.mem.Allocator, 
+        name: []const u8, 
+        press: f64, 
+        temp: f64, 
+        fluid: sim.intrinsic.FluidLookup,
+        max_press: f64,
+        max_press_step_frac: f64,
+        min_press: f64,
+        min_press_step_frac: f64,
+        max_enthalpy: f64,
+        max_enthalpy_step_frac: f64,
+        min_enthalpy: f64,
+        min_enthalpy_step_frac: f64,
+        mdot_tol: f64,
+        hdot_tol: f64
+    ) !*Self{
+        const ptr = try allocator.create(Self);
+        ptr.* = try init(
+            allocator,
+            name, 
+            press, 
+            temp, 
+            fluid,
+            max_press,
+            max_press_step_frac,
+            min_press,
+            min_press_step_frac,
+            max_enthalpy,
+            max_enthalpy_step_frac,
+            min_enthalpy,
+            min_enthalpy_step_frac,
+            mdot_tol,
+            hdot_tol
+        );
+        return ptr;
+    }
+
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
+        return try create(
+            allocator,
+            try sim.parse.string_field(allocator, Self, "name", contents),
+            try sim.parse.field(allocator, f64, Self, "press", contents),
+            try sim.parse.field(allocator, f64, Self, "temp", contents),
+            try sim.intrinsic.FluidLookup.from_str(
+                try sim.parse.string_field(allocator, Self, "fluid", contents)
+            ),
+
+            // 20ksi is unlikley lol (at least in my personal life)
+            try sim.parse.optional_field(allocator, f64, Self, "max_press", contents) orelse 1.37895e+8,
+            try sim.parse.optional_field(allocator, f64, Self, "max_press_step_frac", contents) orelse 100.0,
+
+            // 0.001psi
+            try sim.parse.optional_field(allocator, f64, Self, "min_press", contents) orelse 10.0,
+            try sim.parse.optional_field(allocator, f64, Self, "max_press_step_frac", contents) orelse 1e-6,
+
+            // No idea a good limit on ethalpy tbh...
+            try sim.parse.optional_field(allocator, f64, Self, "max_enthalpy", contents) orelse 10e10,
+            try sim.parse.optional_field(allocator, f64, Self, "max_enthalpy_step_frac", contents) orelse 100.0,
+            try sim.parse.optional_field(allocator, f64, Self, "min_enthalpy", contents) orelse -10e10,
+            try sim.parse.optional_field(allocator, f64, Self, "min_enthalpy_step_frac", contents) orelse  1e-7,
+
+            try sim.parse.optional_field(allocator, f64, Self, "mdot_tol", contents) orelse 1e-6,
+            try sim.parse.optional_field(allocator, f64, Self, "hdot_tol", contents) orelse 1e-6,
+
+        );
+
+    }
+
+    // =========================================================================
+    // Interfaces
+    // =========================================================================
+
+    pub fn as_sim_object(self: *Self) sim.SimObject{
+        return sim.SimObject{.SteadyVolume = self};
+    }
+
+    pub fn as_steadyable(self: *Self) sim.interfaces.Steadyable{
+        return sim.interfaces.Steadyable{.SteadyVolume = self};
+    }
+
+    pub fn as_volume(self: *Self) Volume{
+        return Volume{.SteadyVolume = self};
+    }
+
+    // =========================================================================
+    // Sim Object Methods
+    // =========================================================================
+
+    pub fn save_vals(self: *const Self, save_array: []f64) void {
+        save_array[0] = self.intrinsic.press;
+        save_array[1] = self.intrinsic.temp;
+        save_array[2] = self.mdot_in;
+        save_array[3] = self.mdot_out;
+        save_array[4] = self.net_mdot;
+        save_array[5] = self.hdot_in;
+        save_array[6] = self.hdot_out;
+        save_array[7] = self.net_hdot;
+    }
+    
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.intrinsic.press = save_array[0];
+        self.intrinsic.temp = save_array[1];
+        self.mdot_in = save_array[2]; 
+        self.mdot_out = save_array[3]; 
+        self.net_mdot = save_array[4]; 
+        self.hdot_in = save_array[5]; 
+        self.hdot_out = save_array[6]; 
+        self.net_hdot = save_array[7]; 
+    }
+
+    // =========================================================================
+    // Steadyable Methods
+    // =========================================================================
+
+    pub fn get_residuals(self: *Self, guesses: [MAX_RESIDUALS]f64) ![MAX_RESIDUALS]f64{
+
+        self.intrinsic.update_from_ph(guesses[0],guesses[1]);
+
+        self.mdot_in = 0.0;
+        self.hdot_in = 0.0;
+        for (self.connections_in.items) |c|{
+            self.mdot_in += try c.get_mdot(); 
+            self.hdot_in += try c.get_hdot(); 
+        }
+
+        self.mdot_out = 0.0;
+        self.hdot_out = 0.0;
+        for (self.connections_out.items) |c|{
+            self.mdot_out += try c.get_mdot(); 
+            self.hdot_out += try c.get_hdot(); 
+        }
+
+        // Continuity Equation (ingoring head and velocity)
+        self.net_mdot = self.mdot_in - self.mdot_out;
+
+
+        // Use hdot because mdot devides out of the energy conservation
+        self.net_hdot = self.hdot_in - self.hdot_out;
+
+        return [MAX_RESIDUALS]f64{self.net_mdot, self.net_hdot};
+    }
+
+    pub fn intial_guess(self: *Self) [MAX_RESIDUALS]f64{
+        return [MAX_RESIDUALS]f64{self.intrinsic.press, self.intrinsic.sp_enthalpy};
+    }
+
+    pub fn maxs(self: *Self) [MAX_RESIDUALS]f64{
+        return [MAX_RESIDUALS]f64{self.max_press, self.max_enthalpy};
+    }
+
+    pub fn mins(self: *Self) [MAX_RESIDUALS]f64{
+        return [MAX_RESIDUALS]f64{self.min_press, self.min_enthalpy};
+    }
+
+    pub fn max_step_fracs(self: *Self) [MAX_RESIDUALS]f64{
+        return [MAX_RESIDUALS]f64{self.max_press_step_frac, self.max_enthalpy_step_frac};
+    }
+
+    pub fn min_step_fracs(self: *Self) [MAX_RESIDUALS]f64{
+        return [MAX_RESIDUALS]f64{self.min_press_step_frac, self.min_enthalpy_step_frac};
+    }
+
+    pub fn tols(self: *Self) [MAX_RESIDUALS] f64{
+        return [MAX_RESIDUALS]f64{self.mdot_tol, self.hdot_tol};
+    }
+
 };
