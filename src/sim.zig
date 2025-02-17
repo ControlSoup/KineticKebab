@@ -142,8 +142,9 @@ pub const SimObject = union(enum) {
     pub fn save_vals(self: *const Self, save_array: []f64) void {
         return switch (self.*) {
             .SimInfo => |impl| {
-                save_array[0] = @as(f64, @floatFromInt(impl.steps));
-                save_array[1] = impl.time;
+                save_array[0] = @as(f64, @floatFromInt(impl.steady_steps));
+                save_array[1] = @as(f64, @floatFromInt(impl.transient_steps));
+                save_array[2] = impl.time;
             },
             inline else => |impl| impl.save_vals(save_array),
         };
@@ -174,18 +175,20 @@ pub const SimObject = union(enum) {
 pub const Sim = struct {
     const Self = @This();
     const sim_name = "sim";
-    const sim_header = [_][]const u8{"steps [-]", "time [s]"};
+    const sim_header = [_][]const u8{"steady_steps [-]", "transient_steps [-]", "time [s]"};
 
     allocator: std.mem.Allocator,
 
     time: f64 = 0.0,
-    steps: usize = 0,
+    transient_steps: usize = 0,
 
     sim_objs: std.ArrayList(SimObject),
     integrator: *interfaces.Integrator, 
-    steady: interfaces.SteadySolver,
     max_iter: usize,
     updatables: std.ArrayList(interfaces.Updatable),
+
+    steady: interfaces.SteadySolver,
+    steady_steps: usize = 0,
 
     state_names: std.ArrayList([]const u8),
     state_vals: std.ArrayList(f64),
@@ -234,7 +237,7 @@ pub const Sim = struct {
             const name: []u8 = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ obj.name(), header});
 
             try self.state_names.append(name);
-            try self.state_vals.append(-404.0);
+            try self.state_vals.append(std.math.nan(f64));
         }
         obj.save_vals(
             self.state_vals.items[(self.state_vals.items.len - obj.save_len())..]
@@ -271,7 +274,7 @@ pub const Sim = struct {
 
         // Increment time step
         self.time += self.integrator.accepted_dt;
-        self.steps += 1;
+        self.transient_steps += 1;
 
         // Save values to the save array
         try self._save_vals();
@@ -300,12 +303,31 @@ pub const Sim = struct {
 
     }
 
+    pub fn iter_steady(self: *Self) !bool{
+        for (self.updatables.items) |obj| {
+            try obj.update();
+        }
+        
+        const converged = self.steady.iter();
+        self.steady_steps += 1;
+
+        for (self.updatables.items) |obj| {
+            try obj.update();
+        }
+
+        try self._save_vals();
+
+        return converged;
+
+    }
+
     pub fn solve_steady(self: *Self) !void{
 
-        for (0..self.max_iter) |i|{
-            std.log.err("STEP: {d}", .{i});
-            std.log.err("Guesses: {any}\n", .{self.steady.guesses.items});
-
+        for (0..self.max_iter) |_| {
+            self.steady_steps += 1;
+            for (self.updatables.items) |obj| {
+                try obj.update();
+            }
             if (try self.steady.iter()){
                 for (self.updatables.items) |obj| {
                     try obj.update();
@@ -313,11 +335,7 @@ pub const Sim = struct {
                 try self._save_vals();
                 return;
             }
-            std.log.err("Partials: {any}\n", .{self.steady.partials.items});
         }
-
-
-        std.log.err("Steady State unable to converge in [{d}] itterations", .{self.max_iter});
         return errors.ConvergenceError;
     }
 
@@ -372,8 +390,6 @@ pub const Sim = struct {
     // Private / Dev Methods
 
     pub fn _print_info(self: *Self) void {
-        std.log.err("\n\nTime [s]: {d:0.5}", .{self.time});
-        std.log.err("Steps [-]: {d}", .{self.steps});
         for (self.state_names.items, self.state_vals.items) |name, val| {
             std.log.err("{s}: {d:0.4}", .{ name, val });
         }

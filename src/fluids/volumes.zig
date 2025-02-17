@@ -376,20 +376,6 @@ pub const SteadyVolume = struct{
     connections_in: std.ArrayList(sim.restrictions.Restriction),
     connections_out: std.ArrayList(sim.restrictions.Restriction),
 
-    // Lookups
-    max_press: f64,
-    max_enthalpy: f64,
-    min_press: f64,
-    min_enthalpy: f64,
-
-    max_press_step_frac: f64,
-    max_enthalpy_step_frac: f64,
-    min_press_step_frac: f64,
-    min_enthalpy_step_frac: f64,
-
-    mdot_tol: f64,
-    hdot_tol: f64,
-
     net_mdot: f64 = 0.0,
     net_hdot: f64 = 0.0,
 
@@ -397,6 +383,15 @@ pub const SteadyVolume = struct{
     mdot_out: f64 = 0.0,
     hdot_in: f64 = 0.0,
     hdot_out: f64 = 0.0,
+
+
+    // Steady fields
+    maxs: [2]f64,
+    mins: [2]f64,
+    max_step_fracs: [2]f64,
+    min_step_fracs: [2]f64,
+    tols: [2]f64,
+    residuals: [2]f64 = [2]f64{0.0, 0.0},
 
     pub fn init(
         allocator: std.mem.Allocator, 
@@ -482,16 +477,11 @@ pub const SteadyVolume = struct{
             .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp), 
             .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator),
             .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator),
-            .max_press = max_press,
-            .max_press_step_frac = max_press_step_frac,
-            .min_press = min_press,
-            .min_press_step_frac = min_press_step_frac,
-            .max_enthalpy = max_enthalpy,
-            .max_enthalpy_step_frac = max_enthalpy_step_frac,
-            .min_enthalpy = min_enthalpy,
-            .min_enthalpy_step_frac = min_enthalpy_step_frac,
-            .mdot_tol = mdot_tol,
-            .hdot_tol = hdot_tol,
+            .maxs =  [2]f64{max_press, max_enthalpy},
+            .mins = [2]f64{min_press, min_enthalpy},
+            .max_step_fracs = [2]f64{max_press_step_frac, max_enthalpy_step_frac},
+            .min_step_fracs = [2]f64{min_press_step_frac, min_enthalpy_step_frac},
+            .tols = [2]f64{mdot_tol, hdot_tol}
         };
     }
 
@@ -610,7 +600,7 @@ pub const SteadyVolume = struct{
     // Steadyable Methods
     // =========================================================================
 
-    pub fn get_residuals(self: *Self, guesses: [MAX_RESIDUALS]f64) ![MAX_RESIDUALS]f64{
+    pub fn get_residuals(self: *Self, guesses: []f64) ![]f64{
 
         self.intrinsic.update_from_ph(guesses[0],guesses[1]);
 
@@ -635,31 +625,18 @@ pub const SteadyVolume = struct{
         // Use hdot because mdot devides out of the energy conservation
         self.net_hdot = self.hdot_in - self.hdot_out;
 
-        return [MAX_RESIDUALS]f64{self.net_mdot, self.net_hdot};
+        // Update resisduals and return them as a slice for the jacobian
+        self.residuals[0] = self.net_mdot;
+        self.residuals[1] = self.net_hdot;
+
+        return self.residuals[0..];
     }
 
-    pub fn intial_guess(self: *Self) [MAX_RESIDUALS]f64{
-        return [MAX_RESIDUALS]f64{self.intrinsic.press, self.intrinsic.sp_enthalpy};
-    }
+    pub fn intial_guess(self: *Self) []f64{
 
-    pub fn maxs(self: *Self) [MAX_RESIDUALS]f64{
-        return [MAX_RESIDUALS]f64{self.max_press, self.max_enthalpy};
+        // Use residuals to hold the intial guess, and return a slice 
+        self.residuals[0] = self.intrinsic.press;
+        self.residuals[1] = self.intrinsic.sp_enthalpy;
+        return self.residuals[0..];
     }
-
-    pub fn mins(self: *Self) [MAX_RESIDUALS]f64{
-        return [MAX_RESIDUALS]f64{self.min_press, self.min_enthalpy};
-    }
-
-    pub fn max_step_fracs(self: *Self) [MAX_RESIDUALS]f64{
-        return [MAX_RESIDUALS]f64{self.max_press_step_frac, self.max_enthalpy_step_frac};
-    }
-
-    pub fn min_step_fracs(self: *Self) [MAX_RESIDUALS]f64{
-        return [MAX_RESIDUALS]f64{self.min_press_step_frac, self.min_enthalpy_step_frac};
-    }
-
-    pub fn tols(self: *Self) [MAX_RESIDUALS] f64{
-        return [MAX_RESIDUALS]f64{self.mdot_tol, self.hdot_tol};
-    }
-
 };

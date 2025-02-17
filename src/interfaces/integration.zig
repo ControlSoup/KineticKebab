@@ -263,7 +263,7 @@ pub const Integrator = struct{
 
     pub fn add_obj(self: *Self, obj: Integratable) !void{
         try self.obj_list.append(obj);
-        try self.curr_states.append([1]f64{-404.0} ** MAX_STATE_LEN);
+        try self.curr_states.append([1]f64{std.math.nan(f64)} ** MAX_STATE_LEN);
     } 
 
     pub fn integrate(self: *Self) !void{

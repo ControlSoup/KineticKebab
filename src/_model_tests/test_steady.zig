@@ -31,7 +31,7 @@ test "Steady"{
     \\            "object": "Orifice",
     \\            "name": "Orifice1",
     \\            "cda": 1.0,
-    \\            "mdot_method": "IdealIsentropic"
+    \\            "mdot_method": "Debug"
     \\        },
     \\        {
     \\            "object": "SteadyVolume",
@@ -46,7 +46,7 @@ test "Steady"{
     \\            "object": "Orifice",
     \\            "name": "Orifice2",
     \\            "cda": 1.0,
-    \\            "mdot_method": "IdealIsentropic"
+    \\            "mdot_method": "Debug"
     \\        },
     \\        {
     \\            "object": "SteadyVolume",
@@ -61,7 +61,7 @@ test "Steady"{
     \\            "object": "Orifice",
     \\            "name": "Orifice3",
     \\            "cda": 1.0,
-    \\            "mdot_method": "IdealIsentropic"
+    \\            "mdot_method": "Debug"
     \\        },
     \\        {
     \\            "object": "VoidVolume",
@@ -79,6 +79,7 @@ test "Steady"{
     // Sim
     // ========================================================================= 
     const model = try sim.parse.json_sim(allocator, json[0..]);
+    model._print_info();
     try model.solve_steady();
     model._print_info();
     try model.end();
