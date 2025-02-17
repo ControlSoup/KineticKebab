@@ -1,5 +1,7 @@
 const std = @import("std");
 pub const Vec2 = @import("d2.zig").Vec2;
+pub const ArrayMatrix = @import("array_matrix.zig");
+pub const ArrayMatrixf64 = ArrayMatrix.ArrayMatrixf64;
 
 pub fn f64_pow2(x: f64) f64 {
     return std.math.pow(f64, x, 2.0);
@@ -22,3 +24,4 @@ pub fn slice_norm(comptime T: type, slice: []T) T{
 pub fn relative_err(comptime T: type, a: T, b: T) T{
     return @abs(a - b) / @max(@max(a, b), 1e-10);
 }
+
