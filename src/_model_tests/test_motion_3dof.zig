@@ -21,34 +21,34 @@ test "Motion3DOF"{
     \\    },
     \\    "SimObjects":[
     \\        {
-    \\            "object": "Motion",
+    \\            "object": "Motion3DOF",
     \\            "name": "TestSimpleOnly",
     \\            "pos.x": 0.0,
     \\            "pos.y": 0.0,
     \\            "theta": 0.0,
-    \\            "inertia": 1.0,
+    \\            "rotational_inertia": 1.0,
     \\            "mass": 1.0,
     \\            "connections_in": ["TestSimple"]
     \\        },
     \\        {
-    \\            "object": "SimpleForce",
+    \\            "object": "SimpleForce3DOF",
     \\            "name": "TestSimple",
     \\            "force.x": 1.0,
     \\            "force.y": 1.0,
     \\            "moment": 1.0
     \\        },
     \\        {
-    \\            "object": "Motion",
+    \\            "object": "Motion3DOF",
     \\            "name": "TestBodySimpleOnly",
     \\            "pos.x": 0.0,
     \\            "pos.y": 0.0,
     \\            "theta": 1.5707963267948966,
-    \\            "inertia": 1.0,
+    \\            "rotational_inertia": 1.0,
     \\            "mass": 1.0,
     \\            "connections_in": ["TestSimple2", "TestBodySimple"]
     \\        },
     \\        {
-    \\            "object": "SimpleForce",
+    \\            "object": "SimpleForce3DOF",
     \\            "name": "TestSimple2",
     \\            "force.x": 0.0,
     \\            "force.y": -1.0,
