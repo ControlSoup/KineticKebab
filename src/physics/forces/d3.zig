@@ -119,7 +119,7 @@ pub const BodySimple = struct {
     name: []const u8,
     loc: sim.math.Vec2,
     force: sim.math.Vec2,
-    global_force: sim.math.Vec2 = sim.math.Vec2.init_zeros(),
+    global_force: sim.math.Vec2 = sim.math.Vec2.init_nan(),
     moment: f64 = 0.0,
     cg_ptr: ?*sim.motions.d3.Motion = null,
 

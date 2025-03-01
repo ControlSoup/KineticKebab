@@ -20,7 +20,7 @@ pub const Motion = struct {
         "theta_dot [rad/s]", 
         "theta_ddot [rad/s^2]", 
         "net_moment [N*m]", 
-        "inertia [kg*m^2]",
+        "rotational_inertia [kg*m^2]",
     };
 
     name: []const u8,
@@ -29,7 +29,7 @@ pub const Motion = struct {
     pos: sim.math.Vec2,
     theta: f64,
     mass: f64,
-    inertia: f64, 
+    rotational_inertia: f64,  
 
     vel: sim.math.Vec2 = sim.math.Vec2.init_zeros(),
     accel: sim.math.Vec2 = sim.math.Vec2.init_zeros(),
@@ -45,7 +45,7 @@ pub const Motion = struct {
         pos_x: f64,
         pos_y: f64,
         theta: f64,
-        inertia: f64,
+        rotational_inertia: f64,
         mass: f64,
     ) !Self{
         return Self{
@@ -53,7 +53,7 @@ pub const Motion = struct {
             .mass = mass,
             .pos = sim.math.Vec2.init(pos_x, pos_y),
             .theta = theta,
-            .inertia = inertia,
+            .rotational_inertia = rotational_inertia,
             .connections = std.ArrayList(sim.forces.d3.Force).init(allocator)
         };
     }
@@ -64,11 +64,11 @@ pub const Motion = struct {
         pos_x: f64,
         pos_y: f64,
         theta: f64,
-        inertia: f64,
+        rotational_inertia: f64,
         mass: f64,
     ) !*Motion {
         const ptr = try allocator.create(Self);
-        ptr.* = try init(allocator, name, pos_x, pos_y, theta, inertia, mass);
+        ptr.* = try init(allocator, name, pos_x, pos_y, theta, rotational_inertia, mass);
         return ptr;
     }
 
@@ -83,7 +83,7 @@ pub const Motion = struct {
             try sim.parse.field(allocator, f64, Self, "pos.x", contents),
             try sim.parse.field(allocator, f64, Self, "pos.y", contents),
             try sim.parse.field(allocator, f64, Self, "theta", contents),
-            try sim.parse.field(allocator, f64, Self, "inertia", contents),
+            try sim.parse.field(allocator, f64, Self, "rotational_inertia", contents),
             try sim.parse.field(allocator, f64, Self, "mass", contents),
         );
     }
@@ -126,7 +126,7 @@ pub const Motion = struct {
         save_array[10] = self.theta_dot;
         save_array[11] = self.theta_ddot;
         save_array[12] = self.net_moment;
-        save_array[13] = self.inertia;
+        save_array[13] = self.rotational_inertia;
     }
     
     pub fn set_vals(self: *Self, save_array: []f64) void {
@@ -143,7 +143,7 @@ pub const Motion = struct {
         self.theta_dot = save_array[10] ;
         self.theta_ddot = save_array[11] ;
         self.net_moment = save_array[12] ;
-        self.inertia = save_array[13] ;
+        self.rotational_inertia = save_array[13] ;
     }
 
     // =========================================================================
@@ -166,7 +166,7 @@ pub const Motion = struct {
 
         // Get accel from force and mass
         self.accel = self.net_force.div_const(self.mass);
-        self.theta_ddot = self.net_moment / self.inertia;
+        self.theta_ddot = self.net_moment / self.rotational_inertia;
     }
 
     // =========================================================================

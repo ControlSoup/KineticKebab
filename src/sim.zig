@@ -56,7 +56,10 @@ pub const SimObject = union(enum) {
         return switch (self.*){
             .Orifice => |impl| impl.as_restriction(),
             .ConstantMdot => |impl| impl.as_restriction(),
-            inline else => errors.InvalidInterface
+            inline else => {
+                std.log.err("Can't create [{s}] as restriction", .{self.name()});
+                return errors.InvalidInterface;
+            }
         };
     }
 
@@ -64,7 +67,10 @@ pub const SimObject = union(enum) {
         return switch (self.*){
             .SimpleForce => |impl| impl.as_force(),
             .SpringForce => |impl| impl.as_force(),
-            inline else => errors.InvalidInterface
+            inline else => {
+                std.log.err("Can't create [{s}] as d1force", .{self.name()});
+                return errors.InvalidInterface;
+            }
         };
     }
 
@@ -73,7 +79,10 @@ pub const SimObject = union(enum) {
             // 3DOF
             .SimpleForce3DOF => |impl| impl.as_force(),
             .BodySimpleForce3DOF => |impl| impl.as_force(),
-            inline else => errors.InvalidInterface
+            inline else => {
+                std.log.err("Can't create [{s}] as d3force", .{self.name()});
+                return errors.InvalidInterface;
+            }
         };
     }
 
@@ -403,5 +412,7 @@ test {
     _ = @import("_model_tests/test_transient_orifice.zig");
     _ = @import("_model_tests/test_orifice_reverse.zig");
     _ = @import("_model_tests/test_blowdown.zig");
+    _ = @import("math/root_solvers.zig");
+    _ = @import("fluids/equations/equations.zig");
     std.testing.refAllDecls(@This());
 }

@@ -15,6 +15,10 @@ pub const Vec2 = struct{
         return Vec2{.i = 0.0, .j = 0.0};
     }
 
+    pub fn init_nan() Self{
+        return Vec2{.i = std.math.nan(f64), .j = std.math.nan(f64)};
+    }
+
     pub fn from_angle_rad(norm_: f64, angle_rad: f64) Vec2{
         return Vec2.init(
             norm_ * std.math.cos(angle_rad),

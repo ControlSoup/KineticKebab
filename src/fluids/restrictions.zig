@@ -1,6 +1,7 @@
 const std = @import("std");
 const sim = @import("../sim.zig");
 const volumes = @import("volumes.zig");
+pub const nozzles = @import("nozzles.zig");
 const equations = @import("equations/equations.zig");
 
 pub const Restriction = union(enum){
@@ -10,12 +11,14 @@ pub const Restriction = union(enum){
     ConstantMdot: *ConstantMdot,
 
     pub fn get_mdot(self: *const Self) !f64{
+        try self._check_connections();
         switch (self.*){
             inline else => |r| return r.get_mdot(),
         }
     }
 
     pub fn get_hdot(self: *const Self) !f64{
+        try self._check_connections();
         switch (self.*){
             inline else => |r| return r.get_hdot(),
         }
@@ -48,6 +51,21 @@ pub const Restriction = union(enum){
                     return sim.errors.AlreadyConnected;
                 } else {
                        f.*.connection_out = volume_obj; 
+                }
+            }
+        }
+    }
+
+    pub fn _check_connections(self: *const Self) !void{
+        switch (self.*){
+            inline else => |f| {
+                if (f.connection_in == null){
+                    std.log.err("Object[{s}] is missing a connection_in", .{f.name});
+                    return sim.errors.AlreadyConnected; 
+                }
+                if (f.connection_out == null){
+                    std.log.err("Object[{s}] is missing a connection_out", .{f.name});
+                    return sim.errors.AlreadyConnected; 
                 }
             }
         }
@@ -120,8 +138,6 @@ pub const Orifice = struct{
     // =========================================================================
 
     pub fn get_mdot(self: *Self) !f64{
-
-        try self._check_connections();
 
         var state_in = self.connection_in.?.get_intrinsic();
         var state_out = self.connection_out.?.get_intrinsic();
@@ -263,8 +279,6 @@ pub const ConstantMdot = struct{
 
     pub fn get_mdot(self: *Self) !f64{
 
-        try self._check_connections();
-
         const state_in = self.connection_in.?.get_intrinsic();
         const state_out = self.connection_out.?.get_intrinsic();
 
@@ -279,26 +293,10 @@ pub const ConstantMdot = struct{
             return 0.0;
         }
 
-        try self._check_connections();
-
         if (self.mdot > 0.0){
             return self.connection_in.?.get_intrinsic().sp_enthalpy;
         } else{
             return self.connection_out.?.get_intrinsic().sp_enthalpy;
-        }
-    }
-    
-    pub fn _check_connections(self: *Self) !void{
-
-        if (self.connection_in == null){
-            std.log.err("Object[{s}] is missing a connection_in", .{self.name});
-            return sim.errors.AlreadyConnected; 
-        }
-
-
-        if (self.connection_out == null){
-            std.log.err("Object[{s}] is missing a connection_out", .{self.name});
-            return sim.errors.AlreadyConnected; 
         }
     }
 };

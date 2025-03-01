@@ -51,17 +51,37 @@ pub const FluidState = struct{
     medium: FluidLookup,
     press: f64,
     temp: f64,
-    gamma: f64 = 0.0,
-    density: f64 = 0.0,
-    sp_enthalpy: f64 = 0.0,
-    sp_inenergy: f64 = 0.0,
-    sp_entropy: f64 = 0.0,
-    sos: f64 = 0.0,
+    gamma: f64 = std.math.nan(f64),
+    density: f64 = std.math.nan(f64),
+    sp_enthalpy: f64 = std.math.nan(f64),
+    sp_inenergy: f64 = std.math.nan(f64),
+    sp_entropy: f64 = std.math.nan(f64),
+    sos: f64 = std.math.nan(f64),
+    sp_r: f64 = std.math.nan(f64),
 
     pub fn init(medium: FluidLookup, press: f64, temp: f64) Self{
         var new = FluidState{.medium = medium, .press = press, .temp = temp};
         new.update_from_pt(press, temp);
         return new;
+
+    }
+
+    pub fn update_from_sp(self: *Self, sp_entropy: f64, press: f64) void{
+
+        self.press = press;
+        self.sp_entropy = sp_entropy;
+
+        switch (self.medium){
+            .CoolProp => |impl| {
+                self.temp = sim.coolprop.get_property("T", "P", self.press, "S", self.sp_entropy, impl);
+                self.density = sim.coolprop.get_property("D", "P", self.press, "S", self.sp_entropy, impl);
+                self.sp_inenergy = sim.coolprop.get_property("U", "P", self.press, "S", self.sp_entropy, impl);
+                self.sp_enthalpy = sim.coolprop.get_property("H", "P", self.press, "S", self.sp_entropy, impl);
+                self.sos = sim.coolprop.get_property("A", "P", self.press, "S", self.sp_entropy, impl);
+                self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", self.press, "S", self.sp_entropy, impl);
+            },
+            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{})
+        }
     }
 
     pub fn update_from_pt(self: *Self, press: f64, temp: f64) void{
@@ -71,10 +91,10 @@ pub const FluidState = struct{
 
         switch (self.medium){
             .CoolProp => |impl| {
+                self.temp = sim.coolprop.get_property("T", "P", self.press, "T", self.temp, impl);
                 self.density = sim.coolprop.get_property("D", "P", self.press, "T", self.temp, impl);
                 self.sp_inenergy = sim.coolprop.get_property("U", "P", self.press, "T", self.temp, impl);
                 self.sp_enthalpy = sim.coolprop.get_property("H", "P", self.press, "T", self.temp, impl);
-                self.sp_entropy = sim.coolprop.get_property("S", "P", self.press, "T", self.temp, impl);
                 self.sos = sim.coolprop.get_property("A", "P", self.press, "T", self.temp, impl);
                 self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", self.press, "T", self.temp, impl);
             },
@@ -100,6 +120,7 @@ pub const FluidState = struct{
         }
     }
 
+
     pub fn _print(self: *Self) void{
         std.debug.print("Press : {d:0.5}\n", .{self.press});
         std.debug.print("Temp : {d:0.5}\n", .{self.temp});
@@ -110,6 +131,7 @@ pub const FluidState = struct{
         std.debug.print("Speed of Sounds : {d:0.5}\n\n", .{self.sos});
     }
 
+    
 };
 
 
@@ -128,8 +150,8 @@ pub const IdealGas = struct{
     cv: f64,
     gamma: f64,
     molar_mass: f64,
-    enthalpy0: f64 = 0.0,
-    entropy0: f64 = 0.0,
+    enthalpy0: f64 = std.math.nan(f64),
+    entropy0: f64 = std.math.nan(f64),
 
     pub fn init(cp: f64, gamma: f64, molar_mass: f64) Self{
         var gas = IdealGas{
