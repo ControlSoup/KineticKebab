@@ -5,6 +5,7 @@ const c = @cImport({
 
 // =============================================================================
 // Coolprop Wrapper Functions
+// For testing you require the static library libCoolProp.so.6 in /usr/lib64 and/or lib 
 // =============================================================================
 
 pub fn get_property(

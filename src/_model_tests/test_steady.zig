@@ -39,27 +39,12 @@ test "Steady"{
     \\            "press": 25.0,
     \\            "temp": 300.0,
     \\            "fluid": "Nitrogen",
-    \\            "connections_out": ["Orifice2"],
-    \\            "connections_in": ["Orifice1"]
+    \\            "connections_in": ["Orifice1"],
+    \\            "connections_out": ["Orifice2"]
     \\        },
     \\        {
     \\            "object": "Orifice",
     \\            "name": "Orifice2",
-    \\            "cda": 1.0,
-    \\            "mdot_method": "Debug"
-    \\        },
-    \\        {
-    \\            "object": "SteadyVolume",
-    \\            "name": "Inter2",
-    \\            "press": 25.0,
-    \\            "temp": 300.0,
-    \\            "fluid": "Nitrogen",
-    \\            "connections_out": ["Orifice3"],
-    \\            "connections_in": ["Orifice2"]
-    \\        },
-    \\        {
-    \\            "object": "Orifice",
-    \\            "name": "Orifice3",
     \\            "cda": 1.0,
     \\            "mdot_method": "Debug"
     \\        },
@@ -69,7 +54,7 @@ test "Steady"{
     \\            "press": 1e-8,
     \\            "temp": 300.0,
     \\            "fluid": "Nitrogen",
-    \\            "connections_in": ["Orifice3"]
+    \\            "connections_in": ["Orifice2"]
     \\        }
     \\    ]
     \\}
@@ -79,9 +64,10 @@ test "Steady"{
     // Sim
     // ========================================================================= 
     const model = try sim.parse.json_sim(allocator, json[0..]);
-    model._print_info();
+
+    try model.steady.__print("STEADY PRE SOLVE");
     try model.solve_steady();
-    model._print_info();
+    try model.steady.__print("STEADY POST SOLVE");
     try model.end();
 
 }

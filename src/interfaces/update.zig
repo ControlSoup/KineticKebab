@@ -4,10 +4,7 @@ pub const Updatable = union(enum) {
     const Self = @This();
 
     StaticVolume: *sim.volumes.StaticVolume,
-    VoidVolume: *sim.volumes.VoidVolume,
-
     Motion: *sim.motions.d1.Motion,
-
     Motion3DOF: *sim.motions.d3.Motion,
     
 

@@ -204,9 +204,8 @@ pub fn mat_mul(array_matrix_1: *ArrayMatrixf64, array_matrix_2: *ArrayMatrixf64)
     return matrix_copy;
 }
 
+// Extremely basic implementation of gaussian elimination, its not amazingly accurate tbh ~1e-3 or 1e-4 in edge cases
 pub fn gaussian(array_matrix: *ArrayMatrixf64, results: *std.ArrayList(f64), solve: *std.ArrayList(f64)) !void{
-    // This is kinda confusing that you pass in the reuslts and get the reuslt sback out but it saves allocation
-
 
     if (results.items.len != array_matrix.compute_height()){
         std.log.err("Can't perform gaussian with array_matrix.height != results.len got: {d} vs {d}", .{array_matrix.compute_height(), results.items.len});
@@ -245,8 +244,9 @@ pub fn gaussian(array_matrix: *ArrayMatrixf64, results: *std.ArrayList(f64), sol
         pivot = augment.get(j, j);
 
         if (pivot == 0.0){
-            for (j..width - 1) |c|{
+            for (j..width) |c|{
                 if(augment.get(c,j) != 0.0){
+                    pivot = augment.get(c,j);
                     augment.swap_rows(c, j);
                     break;
                 }
@@ -271,6 +271,7 @@ pub fn gaussian(array_matrix: *ArrayMatrixf64, results: *std.ArrayList(f64), sol
             for (0..width) |k|{
                 augment.set(i, k, augment.get(i,k) - (correction * augment.get(j,k)));
             }
+
         }
 
     }
@@ -371,4 +372,29 @@ test "ArrayMatrix" {
     try std.testing.expectApproxEqRel(4.0, gause_2.items[0], 1e-7);
     try std.testing.expectApproxEqRel(-3.0, gause_2.items[1], 1e-7);
     try std.testing.expectApproxEqRel(1.0, gause_2.items[2], 1e-7);
+
+    var arr6 =  [_]f64{
+        0.0, 2.0, 3.0, 2.0,
+        1.0, 5.0, 3.0, 2.0,
+        5.0, 2.0, 11.0, 2.0,
+        2.0, 4.0, 0.0, 1.0,
+    };
+
+    var results6 = std.ArrayList(f64).init(allocator);
+    try results6.append(1.0);
+    try results6.append(2.0);
+    try results6.append(33.0);
+    try results6.append(2.0);
+
+    const mat6 = try ArrayMatrixf64.from_slice(allocator, arr6[0..], 4);
+
+    var gause_6 = std.ArrayList(f64).init(allocator);
+    try gause_6.appendNTimes(std.math.nan(f64), results6.items.len);
+
+    try gaussian(mat6, &results6, &gause_6);
+
+    try std.testing.expectApproxEqRel(104.0 / 31.0, gause_6.items[0], 1e-7);
+    try std.testing.expectApproxEqRel(-73.0 / 93.0, gause_6.items[1], 1e-7);
+    try std.testing.expectApproxEqRel(59.0 / 31.0, gause_6.items[2], 1e-7);
+    try std.testing.expectApproxEqRel(-146.0 / 93.0, gause_6.items[3], 1e-7);
 }

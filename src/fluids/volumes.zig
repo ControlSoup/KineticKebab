@@ -97,10 +97,6 @@ pub const VoidVolume = struct{
         return sim.SimObject{.VoidVolume = self};
     }
 
-    pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
-        return sim.interfaces.Updatable{.VoidVolume = self};
-    }
-
     pub fn as_volume(self: *Self) Volume{
         return Volume{.VoidVolume = self};
     }
@@ -119,20 +115,6 @@ pub const VoidVolume = struct{
         self.intrinsic.temp = save_array[1] ;
     }
 
-    // =========================================================================
-    // Updateable Methods
-    // =========================================================================
-
-    // This method is required to update orifice mdots, but not void state
-    pub fn update(self: *Self) !void{
-        for (self.connections_in.items) |c|{
-            _ = try c.get_mdot(); 
-        }
-
-        for (self.connections_out.items) |c|{
-            _ = try c.get_mdot(); 
-        }
-    }
 };
 
 pub const StaticVolume = struct{
@@ -391,7 +373,7 @@ pub const SteadyVolume = struct{
     max_step_fracs: [2]f64,
     min_step_fracs: [2]f64,
     tols: [2]f64,
-    residuals: [2]f64 = [2]f64{0.0, 0.0},
+    residuals: [2]f64 = [2]f64{std.math.nan(f64), std.math.nan(f64)},
 
     pub fn init(
         allocator: std.mem.Allocator, 
@@ -606,6 +588,7 @@ pub const SteadyVolume = struct{
 
         self.mdot_in = 0.0;
         self.hdot_in = 0.0;
+
         for (self.connections_in.items) |c|{
             self.mdot_in += try c.get_mdot(); 
             self.hdot_in += try c.get_hdot(); 
@@ -632,11 +615,21 @@ pub const SteadyVolume = struct{
         return self.residuals[0..];
     }
 
-    pub fn intial_guess(self: *Self) []f64{
+    pub fn get_intial_guess(self: *Self) []f64{
 
         // Use residuals to hold the intial guess, and return a slice 
         self.residuals[0] = self.intrinsic.press;
         self.residuals[1] = self.intrinsic.sp_enthalpy;
+
         return self.residuals[0..];
+    }
+
+    pub fn check_valid(self: *Self) !void{
+        if (self.connections_in.items.len == 0){
+            std.log.err("SteadyVoluem [{s}] has no connections in", .{self.name});
+        }
+        if (self.connections_out.items.len == 0){
+            std.log.err("SteadyVoluem [{s}] has no connections in", .{self.name});
+        }
     }
 };

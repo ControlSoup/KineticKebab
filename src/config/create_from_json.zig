@@ -76,7 +76,6 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             .VoidVolume => {
                 const new_obj_ptr = try sim.volumes.VoidVolume.from_json(allocator, contents);
                 try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
-                try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
             },
             .StaticVolume => {
                 const new_obj_ptr = try sim.volumes.StaticVolume.from_json(allocator, contents);
@@ -124,7 +123,6 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
                 return errors.JsonConnectionListParseError;
             };
-
             for (connections.value) |connection|{
                 try all_connections.append(Connection.new(connection, new_sim_ptr.sim_objs.getLast().name(), .In));
             }
@@ -149,6 +147,8 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         const plug: sim.SimObject = try new_sim_ptr.get_sim_object_by_name(connection_event.plug);
         const socket: sim.SimObject = try new_sim_ptr.get_sim_object_by_name(connection_event.socket);
         const connection_type = connection_event.connection_type;
+
+        std.log.err("PLUG: {s}, SOCKET: {s}, CONNECTION_TYPE: {any}", .{plug.name(), socket.name(), connection_type});
 
         // Most objects go from plug -> socket
         try switch (socket){
