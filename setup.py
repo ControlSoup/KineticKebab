@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import os
 
 FILE_PATH = os.path.dirname(__file__)
-NAME = "kinetic_kebab_api"
+NAME = "kinetic_kebab"
 res = setup(
     name=NAME,
     version="0.0.1",
