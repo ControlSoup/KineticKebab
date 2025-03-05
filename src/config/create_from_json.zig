@@ -83,8 +83,8 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
                 try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
                 try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
             },
-            .SteadyVolume => {
-                const new_obj_ptr = try sim.volumes.SteadyVolume.from_json(allocator, contents);
+            .UpwindedSteadyVolume => {
+                const new_obj_ptr = try sim.volumes.UpwindedSteadyVolume.from_json(allocator, contents);
                 try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
                 try new_sim_ptr.add_steadyable(new_obj_ptr.as_steadyable());
             },
@@ -148,15 +148,13 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         const socket: sim.SimObject = try new_sim_ptr.get_sim_object_by_name(connection_event.socket);
         const connection_type = connection_event.connection_type;
 
-        std.log.err("PLUG: {s}, SOCKET: {s}, CONNECTION_TYPE: {any}", .{plug.name(), socket.name(), connection_type});
-
         // Most objects go from plug -> socket
         try switch (socket){
             .StaticVolume => |impl| switch(connection_type){
                 .In => try impl.as_volume().add_connection_in(plug),
                 .Out => try impl.as_volume().add_connection_out(plug),
             },
-            .SteadyVolume => |impl| switch(connection_type){
+            .UpwindedSteadyVolume => |impl| switch(connection_type){
                 .In => try impl.as_volume().add_connection_in(plug),
                 .Out => try impl.as_volume().add_connection_out(plug),
             },

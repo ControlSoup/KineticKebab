@@ -16,7 +16,7 @@ test "Steady"{
     \\{
     \\    "SimOptions":{
     \\        "integration_method": "Rk4", 
-    \\        "max_iter": 250
+    \\        "max_iter": 50
     \\    },
     \\    "SimObjects":[
     \\        {
@@ -34,9 +34,9 @@ test "Steady"{
     \\            "mdot_method": "Debug"
     \\        },
     \\        {
-    \\            "object": "SteadyVolume",
+    \\            "object": "UpwindedSteadyVolume",
     \\            "name": "Inter1",
-    \\            "press": 25.0,
+    \\            "press": 50.0,
     \\            "temp": 300.0,
     \\            "fluid": "Nitrogen",
     \\            "connections_in": ["Orifice1"],
@@ -49,12 +49,27 @@ test "Steady"{
     \\            "mdot_method": "Debug"
     \\        },
     \\        {
+    \\            "object": "UpwindedSteadyVolume",
+    \\            "name": "Inter2",
+    \\            "press": 25.0,
+    \\            "temp": 300.0,
+    \\            "fluid": "Nitrogen",
+    \\            "connections_in": ["Orifice2"],
+    \\            "connections_out": ["Orifice3"]
+    \\        },
+    \\        {
+    \\            "object": "Orifice",
+    \\            "name": "Orifice3",
+    \\            "cda": 1.0,
+    \\            "mdot_method": "Debug"
+    \\        },
+    \\        {
     \\            "object": "VoidVolume",
     \\            "name": "Downstream",
     \\            "press": 1e-8,
     \\            "temp": 300.0,
     \\            "fluid": "Nitrogen",
-    \\            "connections_in": ["Orifice2"]
+    \\            "connections_in": ["Orifice3"]
     \\        }
     \\    ]
     \\}
@@ -65,9 +80,8 @@ test "Steady"{
     // ========================================================================= 
     const model = try sim.parse.json_sim(allocator, json[0..]);
 
-    try model.steady.__print("STEADY PRE SOLVE");
     try model.solve_steady();
-    try model.steady.__print("STEADY POST SOLVE");
+    model._print_info();
     try model.end();
 
 }

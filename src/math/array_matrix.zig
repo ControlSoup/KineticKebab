@@ -136,6 +136,9 @@ pub const ArrayMatrixf64 = struct{
     }
 
     pub fn swap_rows(self: *Self, j1: usize, j2: usize) void{
+        
+        if (j1 == j2) return;
+
         var temp: f64 = 0.0;
         for (0..self.width) |i|{
             temp = self.get(j2, i);
@@ -236,24 +239,26 @@ pub fn gaussian(array_matrix: *ArrayMatrixf64, results: *std.ArrayList(f64), sol
         augment.set(i, width - 1, result);
     }
 
-    var pivot: f64 = 0.0;
-    var target: f64 = 0.0;
-    var correction: f64 = 0.0;
-
     for (0..width - 1) |j| {
-        pivot = augment.get(j, j);
 
-        if (pivot == 0.0){
-            for (j..width) |c|{
-                if(augment.get(c,j) != 0.0){
-                    pivot = augment.get(c,j);
-                    augment.swap_rows(c, j);
-                    break;
-                }
+        var largest_pivot: f64 = augment.get(j, j);
+        var new_pivot_index: usize = j;
+        for (j..height) |c|{
+            if (c == j) continue; // skip current pivot
 
-                if (c == width - 1) return error.SingularMatrix;
+            const curr = augment.get(c,j);
+            if (@abs(curr) > @abs(largest_pivot)) {
+                new_pivot_index = c;
+                largest_pivot = curr;
             }
         }
+
+        if (largest_pivot == 0.0) {
+            try array_matrix.__print("Singular Matrix");
+            return error.SingularMatrix;
+        }
+
+        augment.swap_rows(new_pivot_index, j);
 
         // Elimnation bellow pivot
         for (j..height) |i|{
@@ -261,12 +266,12 @@ pub fn gaussian(array_matrix: *ArrayMatrixf64, results: *std.ArrayList(f64), sol
             // Skip pivot
             if (j == i) continue;    
 
-            target = augment.get(i,j);
+            const target = augment.get(i,j);
 
             // Skip divide by 0.0
             if (target == 0.0) continue;
 
-            correction = target / pivot;
+            const correction = target / largest_pivot;
 
             for (0..width) |k|{
                 augment.set(i, k, augment.get(i,k) - (correction * augment.get(j,k)));

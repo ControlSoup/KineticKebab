@@ -36,7 +36,7 @@ pub const SimObject = union(enum) {
     Orifice: *restrictions.Orifice,
     VoidVolume: *volumes.VoidVolume,
     StaticVolume: *volumes.StaticVolume,
-    SteadyVolume: *volumes.SteadyVolume,
+    UpwindedSteadyVolume: *volumes.UpwindedSteadyVolume,
 
     // 1DOF
     SimpleForce: *forces.d1.Simple,
@@ -95,7 +95,7 @@ pub const SimObject = union(enum) {
             .Orifice => restrictions.Orifice.header[0..],
             .VoidVolume => volumes.VoidVolume.header[0..],
             .StaticVolume => volumes.StaticVolume.header[0..],
-            .SteadyVolume => volumes.SteadyVolume.header[0..],
+            .UpwindedSteadyVolume => volumes.UpwindedSteadyVolume.header[0..],
 
             // 1DOF
             .SimpleForce => forces.d1.Simple.header[0..],
@@ -121,7 +121,7 @@ pub const SimObject = union(enum) {
             .Orifice => restrictions.Orifice.header.len,
             .VoidVolume => volumes.VoidVolume.header.len,
             .StaticVolume => volumes.StaticVolume.header.len,
-            .SteadyVolume => volumes.SteadyVolume.header.len,
+            .UpwindedSteadyVolume => volumes.UpwindedSteadyVolume.header.len,
 
             // 1DOF
             .SimpleForce => forces.d1.Simple.header.len,
@@ -324,6 +324,8 @@ pub const Sim = struct {
     pub fn solve_steady(self: *Self) !void{
 
         for (0..self.max_iter) |_| {
+            try self.steady.__print("Step");
+
             self.steady_steps += 1;
             for (self.updatables.items) |obj| {
                 try obj.update();

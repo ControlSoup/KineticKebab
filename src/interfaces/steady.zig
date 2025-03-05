@@ -4,8 +4,13 @@ const sim = @import("../sim.zig");
 pub const Steadyable = union(enum) {
     const Self = @This();
 
-    SteadyVolume: *sim.volumes.SteadyVolume,
+    UpwindedSteadyVolume: *sim.volumes.UpwindedSteadyVolume,
 
+    pub fn name(self: *const Self) [] const u8{
+        return switch(self.*){
+            inline else => |impl| impl.name
+        };
+    }
 
     pub fn get_residuals(self: *const Self, pertb: []f64) ![]f64{
         return switch(self.*){
@@ -31,15 +36,15 @@ pub const Steadyable = union(enum) {
         };
     }
 
-    pub fn get_max_step_fracs(self: *const Self) []f64{
+    pub fn get_max_steps(self: *const Self) []f64{
         return switch(self.*){
-            inline else => |impl| impl.max_step_fracs[0..]
+            inline else => |impl| impl.max_steps[0..]
         };
     }
 
-    pub fn get_min_step_fracs(self: *const Self) []f64{
+    pub fn get_min_steps(self: *const Self) []f64{
         return switch(self.*){
-            inline else => |impl| impl.min_step_fracs[0..]
+            inline else => |impl| impl.min_steps[0..]
         };
     }
 
@@ -106,6 +111,10 @@ pub const SteadySolver = struct{
             const residual = try obj.get_residuals(obj_guess);
 
             for (residual, tols) |r, tol| {
+                if (r == std.math.nan(f64) or r == std.math.inf(f64)) {
+                    try self.__print("Nan or Inf Residual");
+                    return error.InvalidResidual;
+                }
                 if (@abs(r) > tol) converged = false;
                 self.residuals.items[pos_tracker] = r;
                 pos_tracker += 1;
@@ -131,10 +140,12 @@ pub const SteadySolver = struct{
             const obj_guess = self.guesses_unfolded.items[pos_tracker.. pos_tracker + tols.len];
 
             for (obj_guess, 0..) |curr_guess, g_idx| {
+                
+                var perturb = curr_guess * 1.10;
+                if (curr_guess == 0) perturb = 1e-6;
 
-                const perturb_frac = 1.01;
-                const perturb = curr_guess * perturb_frac;
-                const interval = perturb - curr_guess;
+                const interval = curr_guess - perturb;
+
                 const temp = obj_guess[g_idx];
                 obj_guess[g_idx] = perturb; 
 
@@ -147,11 +158,11 @@ pub const SteadySolver = struct{
                         try p_obj.get_residuals(self.guesses_unfolded.items[p_pos_tracker.. p_pos_tracker + p_tols.len])
                     ) |residual| {
                         
-                        self.residuals.items[p_pos_tracker] = residual;
+                        const d_residual = self.residuals.items[p_pos_tracker] - residual;
 
-                        const partial = self.residuals.items[p_pos_tracker] - residual / interval;
+                        var partial = d_residual / interval;
+                        if (interval == 0.0) partial = 0.0; 
 
-                        std.log.err("{d}, {d}", .{pos_tracker, p_pos_tracker});
                         self.partials.set(pos_tracker, p_pos_tracker, partial);
 
                         p_pos_tracker += 1;
@@ -160,17 +171,42 @@ pub const SteadySolver = struct{
 
                 // Put the guess back for future objects
                 obj_guess[g_idx] = temp;
+
                 pos_tracker += 1;
             }
         }
 
         // Solve for new guesses
-        try self.__print("GAUSE TIME");
         try sim.math.ArrayMatrix.gaussian(&self.partials, &self.residuals, &self.guess_delta);
 
         // Update next guess per jacobian solve
-        for (self.guess_delta.items, 0..) |delta, i|{
-            self.guesses_unfolded.items[i] -= delta;
+        pos_tracker = 0;
+        for (self.obj_list.items) |obj| {
+            const maxes = obj.get_maxs();
+            const mins = obj.get_mins();
+            const max_steps = obj.get_max_steps();
+            const min_steps = obj.get_min_steps();
+
+            // Rate limit
+            for (maxes, mins, max_steps, min_steps) |max, min, max_step, min_step|{
+                
+                const delta = self.guess_delta.items[pos_tracker];
+                const curr_guess = self.guesses_unfolded.items[pos_tracker];
+
+                var new_guess = curr_guess - self.guess_delta.items[pos_tracker];
+
+                if (@abs(delta) > max_step) new_guess = curr_guess - (max_step * std.math.sign(delta));
+                if (@abs(delta) < min_step) new_guess = curr_guess - (min_step * std.math.sign(delta));
+
+                new_guess = @min(new_guess, max);
+                new_guess = @max(new_guess, min);
+                
+
+                self.guesses_unfolded.items[pos_tracker] = new_guess;
+
+                pos_tracker += 1;
+            }
+
         }
 
         return false;
@@ -178,9 +214,18 @@ pub const SteadySolver = struct{
 
     pub fn __print(self: *Self, comment: []const u8) !void{
         std.log.err("\n========================== Steady {s} ==========================\n", .{comment});
+
+        var str = try std.fmt.allocPrint(self.partials.array_list.allocator, "", .{});
+        for (self.obj_list.items) |obj|{
+            const tols = obj.get_tols();
+            for (0..tols.len) |i|{
+                str = try std.fmt.allocPrint(self.partials.array_list.allocator, "{s}{s} [{d}], ", .{str, obj.name(), i});
+            }
+        }
+
         std.log.err("\nGuesses (unfolded) = {any}\n", .{self.guesses_unfolded.items});
-        std.log.err("\nGuesses Delta (unfolded) = {any}\n", .{self.guess_delta.items});
         std.log.err("\nResiduals = {any}\n", .{self.residuals.items});
+        std.log.err("\nObjects: {s}", .{str});
         try self.partials.__print("Partials");
     }
 

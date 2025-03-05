@@ -9,18 +9,12 @@ pub const Restriction = union(enum){
     Orifice: *Orifice,
     ConstantMdot: *ConstantMdot,
 
-    pub fn get_mdot(self: *const Self) !f64{
+    pub fn get_mhdot(self: *const Self) ![2]f64{
         try self._check_connections();
+        
         return switch (self.*){
-            inline else => |r| r.get_mdot(),
+            inline else => |f| f.get_mhdot()
         };
-    }
-
-    pub fn get_hdot(self: *const Self) !f64{
-        try self._check_connections();
-        switch (self.*){
-            inline else => |r| return r.get_hdot(),
-        }
     }
 
     pub fn add_connection_in(
@@ -93,13 +87,14 @@ pub const MdotMethod = enum{
 
 pub const Orifice = struct{
     const Self = @This();
-    pub const header = [_][]const u8{"cda [m^2]", "mdot [kg/s]", "dp [Pa]", "is_choked [-]"};
+    pub const header = [_][]const u8{"cda [m^2]", "mdot [kg/s]", "hdot [J/kg*s]", "dp [Pa]", "is_choked [-]"};
 
     name: []const u8,
     cda: f64,
     mdot_method: MdotMethod,
 
     mdot: f64 = 0.0,
+    hdot: f64 = 0.0,
     dp: f64 = 0.0,
     is_choked: bool = false,
     connection_in: ?volumes.Volume = null,
@@ -142,7 +137,15 @@ pub const Orifice = struct{
     //  Restriction Methods
     // =========================================================================
 
-    pub fn get_mdot(self: *Self) !f64{
+    pub fn update_hdot(self: *Self) !void{
+        if (self.mdot > 0.0){
+            self.hdot = self.connection_in.?.get_intrinsic().sp_enthalpy * self.mdot;
+        } else{
+            self.hdot = self.connection_out.?.get_intrinsic().sp_enthalpy * self.mdot;
+        }
+    }
+
+    pub fn get_mhdot(self: *Self) ![2]f64{
 
         var state_in = self.connection_in.?.get_intrinsic();
         var state_out = self.connection_out.?.get_intrinsic();
@@ -152,7 +155,7 @@ pub const Orifice = struct{
         // If your less than 0.1 Pa common man... its not flowing
         if (@abs(self.dp) <= 0.1){
             self.mdot = 0.0;
-            return 0.0;
+            try self.update_hdot();
         }
 
         // For the purposes of the calc is dp < 0 flow is reversed
@@ -182,15 +185,10 @@ pub const Orifice = struct{
         }
 
         if (self.dp < 0.0) self.mdot *= -1;
-        return self.mdot;
-    }
 
-    pub fn get_hdot(self: *Self) !f64{
-        if (self.mdot > 0.0){
-            return self.connection_in.?.get_intrinsic().sp_enthalpy;
-        } else{
-            return self.connection_out.?.get_intrinsic().sp_enthalpy;
-        }
+        try self.update_hdot();
+
+        return [2]f64{self.mdot, self.hdot};
     }
 
     // =========================================================================
@@ -200,8 +198,9 @@ pub const Orifice = struct{
     pub fn save_vals(self: *const Self, save_array: []f64) void{
         save_array[0] = self.cda;
         save_array[1] = self.mdot;
-        save_array[2] = self.dp;
-        save_array[3] = if (self.is_choked) 1.0 else 0.0;
+        save_array[2] = self.hdot;
+        save_array[3] = self.dp;
+        save_array[4] = if (self.is_choked) 1.0 else 0.0;
     }
 
     pub fn set_vals(self: *Self, save_array: []f64) void{
@@ -211,11 +210,12 @@ pub const Orifice = struct{
 
 pub const ConstantMdot = struct{
     const Self = @This();
-    pub const header = [_][]const u8{"mdot [kg/s]", "dp [Pa]", "is_choked [-]"};
+    pub const header = [_][]const u8{"mdot [kg/s]", "hdot [J/kg*s]", "dp [Pa]", "is_choked [-]"};
 
     name: []const u8,
     mdot: f64,
 
+    hdot: f64 = 0.0,
     dp: f64 = 0.0,
     is_choked: bool = false,
     connection_in: ?volumes.Volume = null,
@@ -257,8 +257,9 @@ pub const ConstantMdot = struct{
 
     pub fn save_vals(self: *const Self, save_array: []f64) void{
         save_array[0] = self.mdot;
-        save_array[1] = self.dp;
-        save_array[2] = if (self.is_choked) 1.0 else 0.0;
+        save_array[1] = self.hdot;
+        save_array[2] = self.dp;
+        save_array[3] = if (self.is_choked) 1.0 else 0.0;
     }
 
     pub fn set_vals(self: *const Self, save_array: []f64) void{
@@ -269,22 +270,17 @@ pub const ConstantMdot = struct{
     // Restriction Methods
     // =========================================================================
 
-    pub fn get_mdot(self: *Self) !f64{
+    pub fn get_mhdot(self: *Self) ![2]f64{
 
         const state_in = self.connection_in.?.get_intrinsic();
         const state_out = self.connection_out.?.get_intrinsic();
 
+
         self.dp = state_in.press - state_out.press;
 
-        return self.mdot;
+        self.hdot = self.connection_in.?.get_intrinsic().sp_enthalpy * self.mdot;
+
+        return [2]f64{self.mdot, self.hdot};
     }
 
-    pub fn get_hdot(self: *Self) !f64{
-
-        if (self.mdot > 0.0){
-            return self.connection_in.?.get_intrinsic().sp_enthalpy;
-        } else{
-            return self.connection_out.?.get_intrinsic().sp_enthalpy;
-        }
-    }
 };
