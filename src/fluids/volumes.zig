@@ -537,22 +537,29 @@ pub const UpwindedSteadyVolume = struct{
         
         self.intrinsic.press = guesses[0];
 
+        self.hdot_in = 0.0;
         self.mdot_in = 0.0;
+        self.mdot_out = 0.0;
+
         for (self.connections_in.items) |c|{
             const mhdot = try c.get_mhdot();
 
             if (mhdot[0] >= 0.0){
                 self.mdot_in += mhdot[0]; 
                 self.hdot_in += mhdot[1]; 
+            } else{
+                self.mdot_out += -mhdot[0];
             }
         }
 
-        self.mdot_out = 0.0;
         for (self.connections_out.items) |c|{
             const mhdot = try c.get_mhdot();
 
             if (mhdot[0] >= 0.0){
                 self.mdot_out += mhdot[0]; 
+            } else{
+                self.mdot_in += -mhdot[0];
+                self.hdot_in += -mhdot[1];
             }
         }
 
