@@ -24,7 +24,8 @@ pub const errors = parse.errors || error{
     MissingConnection,
     MismatchedLength,
     CannotSet,
-    InvalidInterface
+    InvalidInterface,
+    ConvergenceError
 };
 
 pub const SimObject = union(enum) {
@@ -35,6 +36,7 @@ pub const SimObject = union(enum) {
     Orifice: *restrictions.Orifice,
     VoidVolume: *volumes.VoidVolume,
     StaticVolume: *volumes.StaticVolume,
+    UpwindedSteadyVolume: *volumes.UpwindedSteadyVolume,
 
     // 1DOF
     SimpleForce: *forces.d1.Simple,
@@ -93,6 +95,7 @@ pub const SimObject = union(enum) {
             .Orifice => restrictions.Orifice.header[0..],
             .VoidVolume => volumes.VoidVolume.header[0..],
             .StaticVolume => volumes.StaticVolume.header[0..],
+            .UpwindedSteadyVolume => volumes.UpwindedSteadyVolume.header[0..],
 
             // 1DOF
             .SimpleForce => forces.d1.Simple.header[0..],
@@ -118,6 +121,7 @@ pub const SimObject = union(enum) {
             .Orifice => restrictions.Orifice.header.len,
             .VoidVolume => volumes.VoidVolume.header.len,
             .StaticVolume => volumes.StaticVolume.header.len,
+            .UpwindedSteadyVolume => volumes.UpwindedSteadyVolume.header.len,
 
             // 1DOF
             .SimpleForce => forces.d1.Simple.header.len,
@@ -138,8 +142,9 @@ pub const SimObject = union(enum) {
     pub fn save_vals(self: *const Self, save_array: []f64) void {
         return switch (self.*) {
             .SimInfo => |impl| {
-                save_array[0] = @as(f64, @floatFromInt(impl.steps));
-                save_array[1] = impl.time;
+                save_array[0] = @as(f64, @floatFromInt(impl.steady_steps));
+                save_array[1] = @as(f64, @floatFromInt(impl.transient_steps));
+                save_array[2] = impl.time;
             },
             inline else => |impl| impl.save_vals(save_array),
         };
@@ -170,16 +175,20 @@ pub const SimObject = union(enum) {
 pub const Sim = struct {
     const Self = @This();
     const sim_name = "sim";
-    const sim_header = [_][]const u8{"steps [-]", "time [s]"};
+    const sim_header = [_][]const u8{"steady_steps [-]", "transient_steps [-]", "time [s]"};
 
     allocator: std.mem.Allocator,
 
     time: f64 = 0.0,
-    steps: usize = 0,
+    transient_steps: usize = 0,
 
     sim_objs: std.ArrayList(SimObject),
     integrator: *interfaces.Integrator, 
+    max_iter: usize,
     updatables: std.ArrayList(interfaces.Updatable),
+
+    steady: interfaces.SteadySolver,
+    steady_steps: usize = 0,
 
     state_names: std.ArrayList([]const u8),
     state_vals: std.ArrayList(f64),
@@ -187,7 +196,7 @@ pub const Sim = struct {
 
     // Sim Init
 
-    pub fn init(allocator: std.mem.Allocator, integrator: *interfaces.Integrator) !Self {
+    pub fn init(allocator: std.mem.Allocator, integrator: *interfaces.Integrator, max_iter: usize) !Self {
 
         return Self{ 
             .allocator = allocator, 
@@ -195,19 +204,25 @@ pub const Sim = struct {
             .updatables = std.ArrayList(interfaces.Updatable).init(allocator), 
             .state_vals = std.ArrayList(f64).init(allocator), 
             .state_names = std.ArrayList([]const u8).init(allocator),
-            .integrator = integrator
+            .steady = interfaces.SteadySolver.init(allocator),
+            .max_iter = max_iter,
+            .integrator = integrator,
         };
     }
 
-    pub fn create(allocator: std.mem.Allocator, integrator: *interfaces.Integrator) !*Self {
+    pub fn create(allocator: std.mem.Allocator, integrator: *interfaces.Integrator, max_iter: usize) !*Self {
         const ptr = try allocator.create(Self);
-        ptr.* = try init(allocator, integrator);
+        ptr.* = try init(allocator, integrator, max_iter);
         return ptr;
     }
 
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
         const integrator_ptr = try interfaces.Integrator.from_json(allocator, contents);
-        const new = try create(allocator, integrator_ptr);
+        const new = try create(
+            allocator, 
+            integrator_ptr,
+            (try parse.optional_field(allocator, usize, Self, "max_iter", contents)) orelse 100
+        );
         return new;
     }
 
@@ -222,7 +237,7 @@ pub const Sim = struct {
             const name: []u8 = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ obj.name(), header});
 
             try self.state_names.append(name);
-            try self.state_vals.append(-404.0);
+            try self.state_vals.append(std.math.nan(f64));
         }
         obj.save_vals(
             self.state_vals.items[(self.state_vals.items.len - obj.save_len())..]
@@ -235,6 +250,10 @@ pub const Sim = struct {
 
     pub fn add_integratable(self: *Self, integratable: interfaces.Integratable) !void{
         try self.integrator.add_obj(integratable);
+    }
+
+    pub fn add_steadyable(self: *Self, steadyable: interfaces.Steadyable) !void{
+        try self.steady.add_obj(steadyable);
     }
 
     pub fn step(self: *Self) !void {
@@ -255,7 +274,7 @@ pub const Sim = struct {
 
         // Increment time step
         self.time += self.integrator.accepted_dt;
-        self.steps += 1;
+        self.transient_steps += 1;
 
         // Save values to the save array
         try self._save_vals();
@@ -282,6 +301,28 @@ pub const Sim = struct {
             try self.step();
         }
 
+    }
+
+    pub fn iter_steady(self: *Self) !bool{
+        for (self.updatables.items) |obj| try obj.update();
+        const solved = try self.steady.iter();
+        for (self.updatables.items) |obj| try obj.update();
+        try self._save_vals();
+        self.steady_steps += 1;
+        return solved;
+    }
+
+    pub fn solve_steady(self: *Self) !void{
+        for (0..self.max_iter) |_| {
+            for (self.updatables.items) |obj| try obj.update();
+            if (try self.steady.iter()){
+                for (self.updatables.items) |obj| try obj.update();
+                try self._save_vals();
+                return;
+            }
+            self.steady_steps += 1;
+        }
+        return errors.ConvergenceError;
     }
 
     pub fn end(self: *Self) !void{
@@ -335,8 +376,6 @@ pub const Sim = struct {
     // Private / Dev Methods
 
     pub fn _print_info(self: *Self) void {
-        std.log.err("\n\nTime [s]: {d:0.5}", .{self.time});
-        std.log.err("Steps [-]: {d}", .{self.steps});
         for (self.state_names.items, self.state_vals.items) |name, val| {
             std.log.err("{s}: {d:0.4}", .{ name, val });
         }

@@ -84,6 +84,11 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
                 try new_sim_ptr.add_integratable(new_obj_ptr.as_integratable());
                 try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
             },
+            .UpwindedSteadyVolume => {
+                const new_obj_ptr = try sim.volumes.UpwindedSteadyVolume.from_json(allocator, contents);
+                try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+                try new_sim_ptr.add_steadyable(new_obj_ptr.as_steadyable());
+            },
             .Orifice => {
                 const new_obj_ptr = try sim.restrictions.Orifice.from_json(allocator, contents);
                 try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
@@ -119,20 +124,17 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
                 return errors.JsonConnectionListParseError;
             };
-
             for (connections.value) |connection|{
-                const latest_added_obj = new_sim_ptr.sim_objs.items[new_sim_ptr.sim_objs.items.len - 1].name();
-                try all_connections.append(Connection.new(connection, latest_added_obj, .In));
+                try all_connections.append(Connection.new(connection, new_sim_ptr.sim_objs.getLast().name(), .In));
             }
         } 
-        else if (contents.object.get("connections_out")) |connection_json| {
+        if (contents.object.get("connections_out")) |connection_json| {
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
                 return errors.JsonConnectionListParseError;
             };
 
             for (connections.value) |connection|{
-                const latest_added_obj = new_sim_ptr.sim_objs.items[new_sim_ptr.sim_objs.items.len - 1].name();
-                try all_connections.append(Connection.new(connection, latest_added_obj, .Out));
+                try all_connections.append(Connection.new(connection, new_sim_ptr.sim_objs.getLast().name(), .Out));
             }
 
         }
@@ -150,6 +152,10 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         // Most objects go from plug -> socket
         try switch (socket){
             .StaticVolume => |impl| switch(connection_type){
+                .In => try impl.as_volume().add_connection_in(plug),
+                .Out => try impl.as_volume().add_connection_out(plug),
+            },
+            .UpwindedSteadyVolume => |impl| switch(connection_type){
                 .In => try impl.as_volume().add_connection_in(plug),
                 .Out => try impl.as_volume().add_connection_out(plug),
             },

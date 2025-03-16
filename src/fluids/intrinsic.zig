@@ -25,6 +25,9 @@ pub const FluidLookup = union(enum){
         else if (std.mem.eql(u8, lookup_str, AirCoolProp)){
             return FluidLookup{.CoolProp = AirCoolProp};
         }
+        else if (std.mem.eql(u8, lookup_str, WaterCoolProp)){
+            return FluidLookup{.CoolProp = WaterCoolProp};
+        }
         else {
             std.log.err("Invalid fluid: {s}", .{lookup_str});
             return sim.errors.InvalidInput;
@@ -39,6 +42,7 @@ pub const NitrogenIdealGas = FluidLookup{
 pub const NitrogenCoolProp: []const u8 = "Nitrogen";
 pub const HeliumCoolProp: []const u8 = "Helium";
 pub const AirCoolProp: []const u8 = "Air";
+pub const WaterCoolProp: []const u8 = "Water";
 
 
 // =============================================================================
@@ -95,6 +99,42 @@ pub const FluidState = struct{
                 self.sp_entropy = sim.coolprop.get_property("S", "D", density, "U", sp_inenergy, impl);
                 self.sos = sim.coolprop.get_property("A", "D", density, "U", sp_inenergy, impl);
                 self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "D", density, "U", sp_inenergy, impl);
+            },
+            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{})
+        }
+    }
+
+    pub fn update_from_ph(self: *Self, press: f64, sp_enthalpy: f64) void{
+
+        self.press = press;
+        self.sp_enthalpy = sp_enthalpy;
+
+        switch (self.medium){
+            .CoolProp => |impl| {
+                self.density = sim.coolprop.get_property("D", "P", press, "H", sp_enthalpy, impl);
+                self.temp = sim.coolprop.get_property("T", "P", press, "H", sp_enthalpy, impl);
+                self.sp_inenergy = sim.coolprop.get_property("U", "P", press, "H", sp_enthalpy, impl);
+                self.sp_entropy = sim.coolprop.get_property("S", "P", press, "H", sp_enthalpy, impl);
+                self.sos = sim.coolprop.get_property("A", "P", press, "H", sp_enthalpy, impl);
+                self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", press, "H", sp_enthalpy, impl);
+            },
+            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{})
+        }
+    }
+
+    pub fn update_from_pu(self: *Self, press: f64, sp_inenergy: f64) void{
+
+        self.press = press;
+        self.sp_inenergy = sp_inenergy;
+
+        switch (self.medium){
+            .CoolProp => |impl| {
+                self.density = sim.coolprop.get_property("D", "P", press, "U", sp_inenergy, impl);
+                self.temp = sim.coolprop.get_property("T", "P", press, "U", sp_inenergy, impl);
+                self.sp_enthalpy = sim.coolprop.get_property("H", "P", press, "U", sp_inenergy, impl);
+                self.sp_entropy = sim.coolprop.get_property("S", "P", press, "U", sp_inenergy, impl);
+                self.sos = sim.coolprop.get_property("A", "P", press, "U", sp_inenergy, impl);
+                self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", press, "U", sp_inenergy, impl);
             },
             .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{})
         }

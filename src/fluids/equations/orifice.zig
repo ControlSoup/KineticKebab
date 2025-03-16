@@ -49,6 +49,8 @@ test "ideal_mdots"{
     try std.testing.expect(!ideal_is_choked(p1, p2_unchoked, gamma));
     try std.testing.expectApproxEqRel(74.4459791, ideal_unchoked_mdot(cda, d1, p1, p2_unchoked, gamma), 1e-4);
 
+    // Choked conditional
+    try std.testing.expect(ideal_is_choked(1.0, 0.528, 1.4));
 }
 
 // =============================================================================
