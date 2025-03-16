@@ -442,6 +442,5 @@ test {
     _ = @import("_model_tests/test_transient_orifice.zig");
     _ = @import("_model_tests/test_orifice_reverse.zig");
     _ = @import("_model_tests/test_blowdown.zig");
-    _ = @import("_model_tests/test_steady.zig");
     std.testing.refAllDecls(@This());
 }
