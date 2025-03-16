@@ -68,12 +68,27 @@ export fn set_value_by_name(curr_sim: SimOpaque, name: *const u8, name_len: usiz
 export fn get_value_by_name(curr_sim: SimOpaque, name: *const u8, name_len: usize) callconv(.C) f64 {
     const name_slice: []const u8 = @as([*]const u8, @ptrCast(name))[0..name_len];
     const sim_ptr = from_opaque_to_sim(curr_sim);
-    const result =  sim_ptr.get_value_by_name(name_slice) catch |e| std.debug.panic("{!}", .{e});
-    return result;
+    return sim_ptr.get_value_by_name(name_slice) catch |e| std.debug.panic("{!}", .{e});
 }
 
 export fn end(curr_sim: SimOpaque) callconv(.C) void{
     const sim_ptr = from_opaque_to_sim(curr_sim);
     sim_ptr.end() catch |e| std.debug.panic("{!}", .{e});
     arena.deinit();
+}
+
+export fn solve_steady(curr_sim: SimOpaque) callconv(.C) void{
+    const sim_ptr = from_opaque_to_sim(curr_sim);
+    sim_ptr.solve_steady() catch |e| std.debug.panic("{!}", .{e});
+}
+
+
+export fn print_jacobian(curr_sim: SimOpaque) callconv(.C) void{
+    const sim_ptr = from_opaque_to_sim(curr_sim);
+    sim_ptr.steady.__print("") catch |e| std.debug.panic("{!}", .{e});
+}
+
+export fn iter_steady(curr_sim: SimOpaque) callconv(.C) bool{
+    const sim_ptr = from_opaque_to_sim(curr_sim);
+    return sim_ptr.iter_steady() catch |e| std.debug.panic("{!}", .{e});
 }

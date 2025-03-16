@@ -304,39 +304,23 @@ pub const Sim = struct {
     }
 
     pub fn iter_steady(self: *Self) !bool{
-        for (self.updatables.items) |obj| {
-            try obj.update();
-        }
-        
-        const converged = self.steady.iter();
-        self.steady_steps += 1;
-
-        for (self.updatables.items) |obj| {
-            try obj.update();
-        }
-
+        for (self.updatables.items) |obj| try obj.update();
+        const solved = try self.steady.iter();
+        for (self.updatables.items) |obj| try obj.update();
         try self._save_vals();
-
-        return converged;
-
+        self.steady_steps += 1;
+        return solved;
     }
 
     pub fn solve_steady(self: *Self) !void{
-
         for (0..self.max_iter) |_| {
-            try self.steady.__print("Step");
-
-            self.steady_steps += 1;
-            for (self.updatables.items) |obj| {
-                try obj.update();
-            }
+            for (self.updatables.items) |obj| try obj.update();
             if (try self.steady.iter()){
-                for (self.updatables.items) |obj| {
-                    try obj.update();
-                }
+                for (self.updatables.items) |obj| try obj.update();
                 try self._save_vals();
                 return;
             }
+            self.steady_steps += 1;
         }
         return errors.ConvergenceError;
     }
@@ -459,5 +443,5 @@ test {
     // _ = @import("_model_tests/test_orifice_reverse.zig");
     // _ = @import("_model_tests/test_blowdown.zig");
     _ = @import("_model_tests/test_steady.zig");
-    // std.testing.refAllDecls(@This());
+    std.testing.refAllDecls(@This());
 }

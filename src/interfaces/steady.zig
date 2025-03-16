@@ -97,6 +97,7 @@ pub const SteadySolver = struct{
         
         try self.guess_delta.appendNTimes(std.math.nan(f64), guesses.len);
         try self.residuals.appendNTimes(std.math.nan(f64), guesses.len);
+        try self.perterb_positive.appendNTimes(std.math.nan(f64), guesses.len);
         try self.partials.resize_clear(self.residuals.items.len, self.residuals.items.len, std.math.nan(f64));
         
     }
@@ -105,23 +106,54 @@ pub const SteadySolver = struct{
 
         var converged = true;
         var pos_tracker: usize = 0;
+
+        // Residual method updates local state and reports residuals... kinda inefficent but runnning twice solves issues
+        for (self.obj_list.items) |obj|{
+            const tols = obj.get_tols();
+            const obj_guess = self.guesses_unfolded.items[pos_tracker..pos_tracker + tols.len];
+            _ = try obj.get_residuals(obj_guess);
+            pos_tracker += 1;
+        }
+
+        pos_tracker = 0;
         for (self.obj_list.items) |obj|{
             const tols = obj.get_tols();
             const obj_guess = self.guesses_unfolded.items[pos_tracker..pos_tracker + tols.len];
             const residual = try obj.get_residuals(obj_guess);
 
             for (residual, tols) |r, tol| {
-                if (r == std.math.nan(f64) or r == std.math.inf(f64)) {
-                    try self.__print("Nan or Inf Residual");
-                    return error.InvalidResidual;
-                }
                 if (@abs(r) > tol) converged = false;
                 self.residuals.items[pos_tracker] = r;
                 pos_tracker += 1;
+
+                if (!std.math.isFinite(r)) {
+                    try self.__print("Nan or Inf Residual");
+                    return error.InvalidResidual;
+                }
             }
         }
 
         return converged;
+    }
+
+    pub fn perturb_residuals(self: *Self, idx: usize) !void{
+        
+        // Perturb this idx first
+        const first_obj = self.obj_list.items[idx];
+        const first_tols = first_obj.get_tols();
+        const first_obj_guess = self.guesses_unfolded.items[idx..idx + first_tols.len];
+        const first_residuals = try first_obj.get_residuals(first_obj_guess);
+        for (first_residuals, 0..) |res, r| self.perterb_positive.items[idx + r] = res;
+
+        for (self.obj_list.items, 0..) |obj, i|{
+            // Skip idx (was done previously)
+            if (idx == i) continue;
+            const tols = obj.get_tols();
+            const obj_guess = self.guesses_unfolded.items[i..i + tols.len];
+            const residuals = try obj.get_residuals(obj_guess);
+            for (residuals, 0..) |res, r| self.perterb_positive.items[i + r] = res;
+        }
+
     }
 
     // Seperating iter allows debugging itterations of the solutions 
@@ -134,14 +166,14 @@ pub const SteadySolver = struct{
         if (try self.is_solved()) return true;
 
         var pos_tracker: usize = 0;
-        for (self.obj_list.items) |obj|{
+        for (self.obj_list.items, 0..) |obj, obj_idx|{
             
             const tols = obj.get_tols();
             const obj_guess = self.guesses_unfolded.items[pos_tracker.. pos_tracker + tols.len];
 
             for (obj_guess, 0..) |curr_guess, g_idx| {
                 
-                var perturb = curr_guess * 1.10;
+                var perturb = curr_guess * 1.005; 
                 if (curr_guess == 0) perturb = 1e-6;
 
                 const interval = curr_guess - perturb;
@@ -149,24 +181,17 @@ pub const SteadySolver = struct{
                 const temp = obj_guess[g_idx];
                 obj_guess[g_idx] = perturb; 
 
-                // Itterate through all other objects
                 var p_pos_tracker: usize = 0;
-                for (self.obj_list.items) |p_obj|{
+                for (self.obj_list.items, 0..) |_, p_obj_idx|{
 
-                    const p_tols = p_obj.get_tols();
-                    for (
-                        try p_obj.get_residuals(self.guesses_unfolded.items[p_pos_tracker.. p_pos_tracker + p_tols.len])
-                    ) |residual| {
-                        
-                        const d_residual = self.residuals.items[p_pos_tracker] - residual;
+                    try self.perturb_residuals(obj_idx);
 
-                        var partial = d_residual / interval;
-                        if (interval == 0.0) partial = 0.0; 
+                    const d_residual = self.residuals.items[p_obj_idx] - self.perterb_positive.items[p_obj_idx];
 
-                        self.partials.set(pos_tracker, p_pos_tracker, partial);
+                    const partial = d_residual / interval;
 
-                        p_pos_tracker += 1;
-                    }
+                    self.partials.set(pos_tracker, p_pos_tracker, partial);
+                    p_pos_tracker += 1;
                 }
 
                 // Put the guess back for future objects
@@ -176,37 +201,29 @@ pub const SteadySolver = struct{
             }
         }
 
+
         // Solve for new guesses
         try sim.math.ArrayMatrix.gaussian(&self.partials, &self.residuals, &self.guess_delta);
 
         // Update next guess per jacobian solve
         pos_tracker = 0;
         for (self.obj_list.items) |obj| {
-            const maxes = obj.get_maxs();
-            const mins = obj.get_mins();
-            const max_steps = obj.get_max_steps();
-            const min_steps = obj.get_min_steps();
 
-            // Rate limit
-            for (maxes, mins, max_steps, min_steps) |max, min, max_step, min_step|{
-                
-                const delta = self.guess_delta.items[pos_tracker];
+
+            for  (obj.get_max_steps(), obj.get_min_steps(), obj.get_maxs(), obj.get_mins()) |max_step, min_step, max, min|{
                 const curr_guess = self.guesses_unfolded.items[pos_tracker];
+                const delta = self.guess_delta.items[pos_tracker];
+                var new_guess = curr_guess - delta;
 
-                var new_guess = curr_guess - self.guess_delta.items[pos_tracker];
+                if (@abs(delta) > @abs(max_step)) new_guess = curr_guess - (max_step * std.math.sign(delta));
+                if (@abs(delta) < @abs(min_step)) new_guess = curr_guess - (min_step * std.math.sign(delta));
 
-                if (@abs(delta) > max_step) new_guess = curr_guess - (max_step * std.math.sign(delta));
-                if (@abs(delta) < min_step) new_guess = curr_guess - (min_step * std.math.sign(delta));
-
-                new_guess = @min(new_guess, max);
-                new_guess = @max(new_guess, min);
-                
+                new_guess = @min(max, new_guess); 
+                new_guess = @max(min, new_guess); 
 
                 self.guesses_unfolded.items[pos_tracker] = new_guess;
-
                 pos_tracker += 1;
             }
-
         }
 
         return false;

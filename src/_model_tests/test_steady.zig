@@ -22,7 +22,7 @@ test "Steady"{
     \\        {
     \\            "object": "VoidVolume",
     \\            "name": "Upstream",
-    \\            "press": 200.0,
+    \\            "press": 200000.0,
     \\            "temp": 300.0,
     \\            "fluid": "Nitrogen",
     \\            "connections_out": ["Orifice1"]
@@ -30,8 +30,8 @@ test "Steady"{
     \\        {
     \\            "object": "Orifice",
     \\            "name": "Orifice1",
-    \\            "cda": 1.0,
-    \\            "mdot_method": "Debug"
+    \\            "cda": 0.0001,
+    \\            "mdot_method": "IdealIsentropic"
     \\        },
     \\        {
     \\            "object": "UpwindedSteadyVolume",
@@ -45,8 +45,8 @@ test "Steady"{
     \\        {
     \\            "object": "Orifice",
     \\            "name": "Orifice2",
-    \\            "cda": 1.0,
-    \\            "mdot_method": "Debug"
+    \\            "cda": 0.0001,
+    \\            "mdot_method": "IdealIsentropic"
     \\        },
     \\        {
     \\            "object": "UpwindedSteadyVolume",
@@ -60,8 +60,8 @@ test "Steady"{
     \\        {
     \\            "object": "Orifice",
     \\            "name": "Orifice3",
-    \\            "cda": 1.0,
-    \\            "mdot_method": "Debug"
+    \\            "cda": 0.0001,
+    \\            "mdot_method": "IdealIsentropic"
     \\        },
     \\        {
     \\            "object": "VoidVolume",

@@ -76,6 +76,7 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             .VoidVolume => {
                 const new_obj_ptr = try sim.volumes.VoidVolume.from_json(allocator, contents);
                 try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+                try new_sim_ptr.add_updateable(new_obj_ptr.as_updateable());
             },
             .StaticVolume => {
                 const new_obj_ptr = try sim.volumes.StaticVolume.from_json(allocator, contents);

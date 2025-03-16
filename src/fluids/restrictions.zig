@@ -87,7 +87,7 @@ pub const MdotMethod = enum{
 
 pub const Orifice = struct{
     const Self = @This();
-    pub const header = [_][]const u8{"cda [m^2]", "mdot [kg/s]", "hdot [J/kg*s]", "dp [Pa]", "is_choked [-]"};
+    pub const header = [_][]const u8{"cda [m^2]", "mdot [kg/s]", "hdot [J/(kg*s)]", "dp [Pa]", "is_choked [-]"};
 
     name: []const u8,
     cda: f64,
@@ -137,14 +137,6 @@ pub const Orifice = struct{
     //  Restriction Methods
     // =========================================================================
 
-    pub fn update_hdot(self: *Self) !void{
-        if (self.mdot > 0.0){
-            self.hdot = self.connection_in.?.get_intrinsic().sp_enthalpy * self.mdot;
-        } else{
-            self.hdot = self.connection_out.?.get_intrinsic().sp_enthalpy * self.mdot;
-        }
-    }
-
     pub fn get_mhdot(self: *Self) ![2]f64{
 
         var state_in = self.connection_in.?.get_intrinsic();
@@ -155,7 +147,8 @@ pub const Orifice = struct{
         // If your less than 0.1 Pa common man... its not flowing
         if (@abs(self.dp) <= 0.1){
             self.mdot = 0.0;
-            try self.update_hdot();
+            self.hdot = 0.0;
+            return [2]f64{self.mdot, self.hdot};
         }
 
         // For the purposes of the calc is dp < 0 flow is reversed
@@ -170,7 +163,7 @@ pub const Orifice = struct{
                 self.is_choked = equations.orifice.ideal_is_choked(state_in.press, state_out.press, state_in.gamma);
                 if (self.is_choked) {
                     self.mdot = equations.orifice.ideal_choked_mdot(self.cda, state_in.density, state_in.press, state_in.gamma);
-                } else {
+                } else{
                     self.mdot = equations.orifice.ideal_unchoked_mdot(self.cda, state_in.density, state_in.press, state_out.press, state_in.gamma);   
                 }
             },
@@ -186,7 +179,7 @@ pub const Orifice = struct{
 
         if (self.dp < 0.0) self.mdot *= -1;
 
-        try self.update_hdot();
+        self.hdot = state_in.sp_enthalpy * self.mdot;
 
         return [2]f64{self.mdot, self.hdot};
     }
@@ -210,7 +203,7 @@ pub const Orifice = struct{
 
 pub const ConstantMdot = struct{
     const Self = @This();
-    pub const header = [_][]const u8{"mdot [kg/s]", "hdot [J/kg*s]", "dp [Pa]", "is_choked [-]"};
+    pub const header = [_][]const u8{"mdot [kg/s]", "hdot [J/(kg*s)]", "dp [Pa]", "is_choked [-]"};
 
     name: []const u8,
     mdot: f64,
