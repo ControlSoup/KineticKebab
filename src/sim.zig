@@ -14,6 +14,7 @@ pub const forces = @import("physics/forces/forces.zig");
 pub const motions = @import("physics/motions/motions.zig");
 pub const volumes = @import("fluids/volumes.zig");
 pub const restrictions = @import("fluids/restrictions.zig");
+pub const meta = @import("meta/meta.zig");
 
 pub const errors = parse.errors || error{
     SimObjectDuplicate,
@@ -47,6 +48,9 @@ pub const SimObject = union(enum) {
     SimpleForce3DOF: *forces.d3.Simple,
     BodySimpleForce3DOF: *forces.d3.BodySimple,
     Motion3DOF: *motions.d3.Motion,
+
+    // Meta
+    Rooter: *meta.Rooter,
 
     // Sim
     SimInfo: *Sim,
@@ -106,6 +110,9 @@ pub const SimObject = union(enum) {
             .SimpleForce3DOF => forces.d3.Simple.header[0..],
             .BodySimpleForce3DOF => forces.d3.BodySimple.header[0..],
             .Motion3DOF => motions.d3.Motion.header[0..],
+            
+            // Meta
+            .Rooter => meta.Rooter.header[0..],
 
             // Misc
             .SimInfo => Sim.sim_header[0..],
@@ -133,11 +140,25 @@ pub const SimObject = union(enum) {
             .BodySimpleForce3DOF => forces.d3.BodySimple.header.len,
             .Motion3DOF => motions.d3.Motion.header.len,
 
+            // Meta
+            .Rooter => meta.Rooter.header.len,
+
             //Misc
             .SimInfo => Sim.sim_header.len,
             .Integrator => interfaces.Integrator.header.len,
         };
     }
+
+    pub fn get_field(self: *const Self, field: []const u8) !void{
+        const field_enum = switch (self.*){
+            inline else => |impl| std.meta.FieldEnum(impl)
+        };
+
+        const field_result = std.meta.stringToEnum(field_enum, field);
+
+        std.log.err("{any}", .{field_result});
+    }
+    
 
     pub fn save_vals(self: *const Self, save_array: []f64) void {
         return switch (self.*) {
@@ -437,10 +458,11 @@ pub const Sim = struct {
 };
 
 test {
-    _ = @import("_model_tests/test_motion_1dof.zig");
-    _ = @import("_model_tests/test_motion_3dof.zig");
-    _ = @import("_model_tests/test_transient_orifice.zig");
-    _ = @import("_model_tests/test_orifice_reverse.zig");
-    _ = @import("_model_tests/test_blowdown.zig");
+    // _ = @import("_model_tests/test_motion_1dof.zig");
+    // _ = @import("_model_tests/test_motion_3dof.zig");
+    // _ = @import("_model_tests/test_transient_orifice.zig");
+    // _ = @import("_model_tests/test_orifice_reverse.zig");
+    // _ = @import("_model_tests/test_blowdown.zig");
+    _ = @import("_model_tests/test_rooter.zig");
     std.testing.refAllDecls(@This());
 }

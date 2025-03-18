@@ -15,6 +15,8 @@ pub const errors = error{
 pub const ConnectionType = enum{
     In,
     Out,
+    Getter,
+    Setter,
 };
 
 pub const Connection = struct{
@@ -115,6 +117,11 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
                 std.log.err("Cannot intialize {s}...silly goose its not a object", .{obj_name});
                 return  errors.JsonObjectCreationError;
             },
+            .Rooter => {
+                const new_obj_ptr = try sim.meta.Rooter.from_json(allocator, contents);
+                try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+                try new_sim_ptr.add_steadyable(new_obj_ptr.as_steadyable());
+            }
         }
 
         // Attempt to grab connections
@@ -136,8 +143,22 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             for (connections.value) |connection|{
                 try all_connections.append(Connection.new(connection, new_sim_ptr.sim_objs.getLast().name(), .Out));
             }
-
         }
+        if (contents.object.get("connection_getter")) |connection_json| {
+            const connection = std.json.parseFromValue([]const u8, allocator, connection_json, .{}) catch {
+                return errors.JsonConnectionListParseError;
+            };
+
+            try all_connections.append(Connection.new(connection.value, new_sim_ptr.sim_objs.getLast().name(), .Getter));
+        }
+        if (contents.object.get("connection_setter")) |connection_json| {
+            const connection = std.json.parseFromValue([]const u8, allocator, connection_json, .{}) catch {
+                return errors.JsonConnectionListParseError;
+            };
+
+            try all_connections.append(Connection.new(connection.value, new_sim_ptr.sim_objs.getLast().name(), .Setter));
+        }
+
     }
 
     // Add simulation info
@@ -154,17 +175,37 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
             .StaticVolume => |impl| switch(connection_type){
                 .In => try impl.as_volume().add_connection_in(plug),
                 .Out => try impl.as_volume().add_connection_out(plug),
+                inline else => |t| {
+                    std.log.err("StaticVolume cannot connect via {any}", .{t});
+                    return errors.JsonFailedConnection;
+                }
             },
             .UpwindedSteadyVolume => |impl| switch(connection_type){
                 .In => try impl.as_volume().add_connection_in(plug),
                 .Out => try impl.as_volume().add_connection_out(plug),
+                inline else => |t| {
+                    std.log.err("UpwindedSteadyVolume cannot connect via {any}", .{t});
+                    return errors.JsonFailedConnection;
+                }
             },
             .VoidVolume => |v| switch(connection_type){
                 .In => try v.as_volume().add_connection_in(plug),
                 .Out => try v.as_volume().add_connection_out(plug),
+                inline else => |t| {
+                    std.log.err("VoidVolume cannot connect via {any}", .{t});
+                    return errors.JsonFailedConnection;
+                }
             },
             .Motion => |impl| impl.add_connection(plug),
             .Motion3DOF => |impl| impl.add_connection(plug),
+            .Rooter => |impl| switch(connection_type){
+                .Getter => try impl.add_connection_getter(plug),
+                .Setter => try impl.add_connection_setter(plug),
+                inline else => |t| {
+                    std.log.err("Rooter cannot connect via {any}", .{t});
+                    return errors.JsonFailedConnection;
+                }
+            },
             inline else => {
                 std.log.err("Failed to connect [{s}] to [{s}]", .{plug.name(), socket.name()});
                 return errors.JsonFailedConnection;
