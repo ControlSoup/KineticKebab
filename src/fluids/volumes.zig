@@ -10,49 +10,48 @@ pub const Volume = union(enum) {
     StaticVolume: *StaticVolume,
     UpwindedSteadyVolume: *UpwindedSteadyVolume,
 
-    pub fn get_intrinsic(self: *const Self) sim.intrinsic.FluidState{
-        switch (self.*){
-            inline else => |impl| return impl.intrinsic
+    pub fn get_intrinsic(self: *const Self) sim.intrinsic.FluidState {
+        switch (self.*) {
+            inline else => |impl| return impl.intrinsic,
         }
     }
 
-    pub fn add_connection_in(self: *const Self, sim_obj: sim.SimObject) !void{
-        switch (self.*){
+    pub fn add_connection_in(self: *const Self, sim_obj: sim.SimObject) !void {
+        switch (self.*) {
             inline else => |impl| {
                 try impl.connections_in.append(try sim_obj.as_restriction());
                 try (try sim_obj.as_restriction()).add_connection_out(impl.*.as_volume());
-            } 
+            },
         }
     }
 
-    pub fn add_connection_out(self: *const Self, sim_obj: sim.SimObject) !void{
-        switch (self.*){
+    pub fn add_connection_out(self: *const Self, sim_obj: sim.SimObject) !void {
+        switch (self.*) {
             inline else => |impl| {
                 try impl.connections_out.append(try sim_obj.as_restriction());
                 try (try sim_obj.as_restriction()).add_connection_in(impl.*.as_volume());
-            } 
+            },
         }
     }
 };
 
-pub const VoidVolume = struct{
+pub const VoidVolume = struct {
     const Self = @This();
-    pub const header = [_][]const u8{"press [Pa]", "temp [degK]", "sp_enthalpy [J/kg]"};
+    pub const header = [_][]const u8{ "press [Pa]", "temp [degK]", "sp_enthalpy [J/kg]" };
 
     name: []const u8,
     intrinsic: sim.intrinsic.FluidState,
     connections_in: std.ArrayList(sim.restrictions.Restriction),
     connections_out: std.ArrayList(sim.restrictions.Restriction),
 
-    pub fn init(allocator: std.mem.Allocator, name: []const u8, press: f64, temp: f64, fluid: sim.intrinsic.FluidLookup) !Self{
-
-        if (press < 0.0){
-            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{name, press, 0.0});
+    pub fn init(allocator: std.mem.Allocator, name: []const u8, press: f64, temp: f64, fluid: sim.intrinsic.FluidLookup) !Self {
+        if (press < 0.0) {
+            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{ name, press, 0.0 });
             return sim.errors.InvalidInput;
         }
 
-        if (temp < 0.0){
-            std.log.err("Obect [{s}] temp [{d}] is less minimum pressure [{d}]", .{name, temp, 0.0});
+        if (temp < 0.0) {
+            std.log.err("Obect [{s}] temp [{d}] is less minimum pressure [{d}]", .{ name, temp, 0.0 });
             return sim.errors.InvalidInput;
         }
 
@@ -64,52 +63,37 @@ pub const VoidVolume = struct{
         };
     }
 
-    pub fn create(
-        allocator: std.mem.Allocator, 
-        name:[]const u8, 
-        press: f64, 
-        temp: f64, 
-        fluid: sim.intrinsic.FluidLookup
-    ) !*Self{
+    pub fn create(allocator: std.mem.Allocator, name: []const u8, press: f64, temp: f64, fluid: sim.intrinsic.FluidLookup) !*Self {
         const ptr = try allocator.create(Self);
         ptr.* = try init(allocator, name, press, temp, fluid);
         return ptr;
     }
 
-    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
-        return try create(
-            allocator,
-            try sim.parse.string_field(allocator, Self, "name", contents),
-            try sim.parse.field(allocator, f64, Self, "press", contents),
-            try sim.parse.field(allocator, f64, Self, "temp", contents),
-            try sim.intrinsic.FluidLookup.from_str(
-                try sim.parse.string_field(allocator, Self, "fluid", contents)
-            )
-        );
-
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
+        return try create(allocator, try sim.parse.string_field(allocator, Self, "name", contents), try sim.parse.field(allocator, f64, Self, "press", contents), try sim.parse.field(allocator, f64, Self, "temp", contents), try sim.intrinsic.FluidLookup.from_str(try sim.parse.string_field(allocator, Self, "fluid", contents)));
     }
 
     // =========================================================================
     // Interfaces
     // =========================================================================
 
-    pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.VoidVolume = self};
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{ .VoidVolume = self };
     }
 
-    pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
-        return sim.interfaces.Updatable{.VoidVolume = self};
+    pub fn as_updateable(self: *Self) sim.interfaces.Updatable {
+        return sim.interfaces.Updatable{ .VoidVolume = self };
     }
 
-    pub fn as_volume(self: *Self) Volume{
-        return Volume{.VoidVolume = self};
+    pub fn as_volume(self: *Self) Volume {
+        return Volume{ .VoidVolume = self };
     }
 
     // =========================================================================
     // Updatable
     // =========================================================================
 
-    pub fn update(self: *Self) !void{
+    pub fn update(self: *Self) !void {
         // Volumes are responsible for updating there in and out flow even if
         // Its not used ot update state
         self.intrinsic.update_from_pt(self.intrinsic.press, self.intrinsic.temp);
@@ -128,19 +112,18 @@ pub const VoidVolume = struct{
     }
 
     pub fn set_vals(self: *Self, save_array: []f64) void {
-        self.intrinsic.press = save_array[0] ;
-        self.intrinsic.temp = save_array[1] ;
+        self.intrinsic.press = save_array[0];
+        self.intrinsic.temp = save_array[1];
     }
-
 };
 
-pub const StaticVolume = struct{
+pub const StaticVolume = struct {
     const Self = @This();
     pub const header = [_][]const u8{
-        "press [Pa]", 
-        "temp [degK]", 
-        "mass [kg]", 
-        "volume [m^3]", 
+        "press [Pa]",
+        "temp [degK]",
+        "mass [kg]",
+        "volume [m^3]",
         "inenergy [J]",
         "mdot_in [kg/s]",
         "mdot_out [kg/s]",
@@ -165,22 +148,14 @@ pub const StaticVolume = struct{
     hdot_in: f64 = 0.0,
     hdot_out: f64 = 0.0,
 
-    pub fn init(
-        allocator: std.mem.Allocator, 
-        name: []const u8, 
-        press: f64, 
-        temp: f64, 
-        volume: f64,
-        fluid: sim.intrinsic.FluidLookup
-    ) !Self{
-
-        if (press < 0.0){
-            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{name, press, 0.0});
+    pub fn init(allocator: std.mem.Allocator, name: []const u8, press: f64, temp: f64, volume: f64, fluid: sim.intrinsic.FluidLookup) !Self {
+        if (press < 0.0) {
+            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{ name, press, 0.0 });
             return sim.errors.InvalidInput;
         }
 
-        if (temp < 0.0){
-            std.log.err("Obect [{s}] temp [{d}] is less minimum pressure [{d}]", .{name, temp, 0.0});
+        if (temp < 0.0) {
+            std.log.err("Obect [{s}] temp [{d}] is less minimum pressure [{d}]", .{ name, temp, 0.0 });
             return sim.errors.InvalidInput;
         }
 
@@ -198,51 +173,34 @@ pub const StaticVolume = struct{
         };
     }
 
-    pub fn create(
-        allocator: std.mem.Allocator, 
-        name: []const u8, 
-        press: f64, 
-        temp: f64, 
-        volume: f64,
-        fluid: sim.intrinsic.FluidLookup
-    ) !*Self{
+    pub fn create(allocator: std.mem.Allocator, name: []const u8, press: f64, temp: f64, volume: f64, fluid: sim.intrinsic.FluidLookup) !*Self {
         const ptr = try allocator.create(Self);
         ptr.* = try init(allocator, name, press, temp, volume, fluid);
         return ptr;
     }
 
-    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
-        return try create(
-            allocator,
-            try sim.parse.string_field(allocator, Self, "name", contents),
-            try sim.parse.field(allocator, f64, Self, "press", contents),
-            try sim.parse.field(allocator, f64, Self, "temp", contents),
-            try sim.parse.field(allocator, f64, Self, "volume", contents),
-            try sim.intrinsic.FluidLookup.from_str(
-                try sim.parse.string_field(allocator, Self, "fluid", contents)
-            )
-        );
-
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
+        return try create(allocator, try sim.parse.string_field(allocator, Self, "name", contents), try sim.parse.field(allocator, f64, Self, "press", contents), try sim.parse.field(allocator, f64, Self, "temp", contents), try sim.parse.field(allocator, f64, Self, "volume", contents), try sim.intrinsic.FluidLookup.from_str(try sim.parse.string_field(allocator, Self, "fluid", contents)));
     }
 
     // =========================================================================
     // Interfaces
     // =========================================================================
 
-    pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.StaticVolume = self};
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{ .StaticVolume = self };
     }
 
-    pub fn as_updateable(self: *Self) sim.interfaces.Updatable{
-        return sim.interfaces.Updatable{.StaticVolume = self};
+    pub fn as_updateable(self: *Self) sim.interfaces.Updatable {
+        return sim.interfaces.Updatable{ .StaticVolume = self };
     }
 
-    pub fn as_integratable(self: *Self) sim.interfaces.Integratable{
-        return sim.interfaces.Integratable{.StaticVolume = self};
+    pub fn as_integratable(self: *Self) sim.interfaces.Integratable {
+        return sim.interfaces.Integratable{ .StaticVolume = self };
     }
 
-    pub fn as_volume(self: *Self) Volume{
-        return Volume{.StaticVolume = self};
+    pub fn as_volume(self: *Self) Volume {
+        return Volume{ .StaticVolume = self };
     }
 
     // =========================================================================
@@ -262,61 +220,57 @@ pub const StaticVolume = struct{
         save_array[9] = self.hdot_out;
         save_array[10] = self.net_inenergy_dot;
     }
-    
+
     pub fn set_vals(self: *Self, save_array: []f64) void {
         self.intrinsic.press = save_array[0];
         self.intrinsic.temp = save_array[1];
         self.mass = save_array[2];
         self.volume = save_array[3];
-        self.inenergy = save_array[4]; 
-        self.mdot_in = save_array[5]; 
-        self.mdot_out = save_array[6]; 
-        self.net_mdot = save_array[7]; 
-        self.hdot_in = save_array[8]; 
-        self.hdot_out = save_array[9]; 
-        self.net_inenergy_dot = save_array[10]; 
+        self.inenergy = save_array[4];
+        self.mdot_in = save_array[5];
+        self.mdot_out = save_array[6];
+        self.net_mdot = save_array[7];
+        self.hdot_in = save_array[8];
+        self.hdot_out = save_array[9];
+        self.net_inenergy_dot = save_array[10];
     }
 
     // =========================================================================
     // Updateable Methods
     // =========================================================================
 
-    pub fn update(self: *Self) !void{
-
-
+    pub fn update(self: *Self) !void {
         self.mdot_in = 0.0;
         self.hdot_in = 0.0;
-        for (self.connections_in.items) |c|{
+        for (self.connections_in.items) |c| {
             const mhdot = try c.get_mhdot();
 
-            if (mhdot[0] >= 0.0){
-                self.mdot_in += mhdot[0]; 
-                self.hdot_in += mhdot[1]; 
-            } else{
-                self.mdot_out += - mhdot[0]; 
-                self.hdot_out += - mhdot[1]; 
+            if (mhdot[0] >= 0.0) {
+                self.mdot_in += mhdot[0];
+                self.hdot_in += mhdot[1];
+            } else {
+                self.mdot_out += -mhdot[0];
+                self.hdot_out += -mhdot[1];
             }
         }
 
         self.mdot_out = 0.0;
         self.hdot_out = 0.0;
-        for (self.connections_out.items) |c|{
+        for (self.connections_out.items) |c| {
             const mhdot = try c.get_mhdot();
 
-            if (mhdot[0] >= 0.0){
-                self.mdot_out += mhdot[0]; 
-                self.hdot_out += mhdot[1]; 
-            } else{
-                self.mdot_in += - mhdot[0]; 
-                self.hdot_in += - mhdot[1]; 
+            if (mhdot[0] >= 0.0) {
+                self.mdot_out += mhdot[0];
+                self.hdot_out += mhdot[1];
+            } else {
+                self.mdot_in += -mhdot[0];
+                self.hdot_in += -mhdot[1];
             }
         }
-
 
         // Continuity Equation (ingoring head and velocity)
         self.net_mdot = self.mdot_in - self.mdot_out;
         self.net_inenergy_dot = (self.mdot_in * self.hdot_in) - (self.mdot_out * self.hdot_out);
-
 
         // State update
         self.intrinsic.update_from_du(self.mass / self.volume, self.inenergy / self.mass);
@@ -332,37 +286,18 @@ pub const StaticVolume = struct{
     }
 
     pub fn get_state(self: *Self) [MAX_STATE_LEN]f64 {
-        return [4]f64{
-            self.net_mdot, 
-            self.mass, 
-            self.net_inenergy_dot,
-            self.inenergy
-        } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 4));
+        return [4]f64{ self.net_mdot, self.mass, self.net_inenergy_dot, self.inenergy } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 4));
     }
 
     pub fn get_dstate(self: *Self, state: [MAX_STATE_LEN]f64) [MAX_STATE_LEN]f64 {
         _ = self;
-        return [4]f64{
-            0.0, 
-            state[0], 
-            0.0,
-            state[2] 
-        } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 4));
+        return [4]f64{ 0.0, state[0], 0.0, state[2] } ++ ([1]f64{0.0} ** (MAX_STATE_LEN - 4));
     }
 };
 
-
-pub const UpwindedSteadyVolume = struct{   
+pub const UpwindedSteadyVolume = struct {
     const Self = @This();
-    pub const header = [_][]const u8{
-        "press [Pa]", 
-        "temp [degK]", 
-        "sp_enthalpy [J/kg]", 
-        "mdot_in [kg/s]",
-        "mdot_out [kg/s]",
-        "net_mdot [kg/s]",
-        "hdot_in [J/(kg*s)]"
-    };
+    pub const header = [_][]const u8{ "press [Pa]", "temp [degK]", "sp_enthalpy [J/kg]", "mdot_in [kg/s]", "mdot_out [kg/s]", "net_mdot [kg/s]", "hdot_in [J/(kg*s)]" };
 
     name: []const u8,
     intrinsic: sim.intrinsic.FluidState,
@@ -375,7 +310,6 @@ pub const UpwindedSteadyVolume = struct{
     mdot_out: f64 = 0.0,
     hdot_in: f64 = 0.0,
 
-
     // Steady fields
     maxs: [1]f64,
     mins: [1]f64,
@@ -385,84 +319,73 @@ pub const UpwindedSteadyVolume = struct{
     residuals: [1]f64 = [1]f64{std.math.nan(f64)},
 
     pub fn init(
-        allocator: std.mem.Allocator, 
-        name: []const u8, 
-        press: f64, 
-        temp: f64, 
+        allocator: std.mem.Allocator,
+        name: []const u8,
+        press: f64,
+        temp: f64,
         fluid: sim.intrinsic.FluidLookup,
         max_press: f64,
         max_press_step: f64,
         min_press: f64,
         min_press_step: f64,
         mdot_tol: f64,
-    ) !Self{
-
-        if (press < 0.0){
-            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{name, press, 0.0});
+    ) !Self {
+        if (press < 0.0) {
+            std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{ name, press, 0.0 });
             return sim.errors.InvalidInput;
         }
 
-        if (temp < 0.0){
-            std.log.err("Obect [{s}] temp [{d}] is less min temp [{d}]", .{name, temp, 0.0});
+        if (temp < 0.0) {
+            std.log.err("Obect [{s}] temp [{d}] is less min temp [{d}]", .{ name, temp, 0.0 });
             return sim.errors.InvalidInput;
         }
 
-        if (min_press > max_press){
-            std.log.err("Obect [{s}] min press [{d}] is greater max press [{d}]", .{name, min_press, max_press});
+        if (min_press > max_press) {
+            std.log.err("Obect [{s}] min press [{d}] is greater max press [{d}]", .{ name, min_press, max_press });
             return sim.errors.InvalidInput;
         }
 
-        if (min_press_step > max_press_step){
-            std.log.err("Obect [{s}] min press frac [{d}] is greater max press [{d}]", .{name, min_press_step, max_press_step});
+        if (min_press_step > max_press_step) {
+            std.log.err("Obect [{s}] min press frac [{d}] is greater max press [{d}]", .{ name, min_press_step, max_press_step });
             return sim.errors.InvalidInput;
         }
 
-        if (max_press < min_press){
-            std.log.err("Obect [{s}] max press [{d}] is less than min press [{d}]", .{name, max_press, min_press});
+        if (max_press < min_press) {
+            std.log.err("Obect [{s}] max press [{d}] is less than min press [{d}]", .{ name, max_press, min_press });
             return sim.errors.InvalidInput;
         }
 
-        if (max_press_step < min_press_step){
-            std.log.err("Obect [{s}] max press step frac [{d}] is less than min press step frac [{d}]", .{name, max_press_step, min_press_step});
+        if (max_press_step < min_press_step) {
+            std.log.err("Obect [{s}] max press step frac [{d}] is less than min press step frac [{d}]", .{ name, max_press_step, min_press_step });
             return sim.errors.InvalidInput;
         }
 
-        if(mdot_tol < 0.0){
-            std.log.err("Obect [{s}] mdot tolerance[{d}] is less [{d}]", .{name, mdot_tol, 0.0});
+        if (mdot_tol < 0.0) {
+            std.log.err("Obect [{s}] mdot tolerance[{d}] is less [{d}]", .{ name, mdot_tol, 0.0 });
             return sim.errors.InvalidInput;
         }
 
-        return Self{
-            .name = name,
-            .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp), 
-            .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator),
-            .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator),
-            .maxs =  [1]f64{max_press},
-            .mins = [1]f64{min_press},
-            .max_steps = [1]f64{max_press_step},
-            .min_steps = [1]f64{min_press_step},
-            .tols = [1]f64{mdot_tol}
-        };
+        return Self{ .name = name, .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp), .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator), .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator), .maxs = [1]f64{max_press}, .mins = [1]f64{min_press}, .max_steps = [1]f64{max_press_step}, .min_steps = [1]f64{min_press_step}, .tols = [1]f64{mdot_tol} };
     }
 
     pub fn create(
-        allocator: std.mem.Allocator, 
-        name: []const u8, 
-        press: f64, 
-        temp: f64, 
+        allocator: std.mem.Allocator,
+        name: []const u8,
+        press: f64,
+        temp: f64,
         fluid: sim.intrinsic.FluidLookup,
         max_press: f64,
         max_press_step: f64,
         min_press: f64,
         min_press_step: f64,
         mdot_tol: f64,
-    ) !*Self{
+    ) !*Self {
         const ptr = try allocator.create(Self);
         ptr.* = try init(
             allocator,
-            name, 
-            press, 
-            temp, 
+            name,
+            press,
+            temp,
             fluid,
             max_press,
             max_press_step,
@@ -473,15 +396,13 @@ pub const UpwindedSteadyVolume = struct{
         return ptr;
     }
 
-    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self{
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
         return try create(
             allocator,
             try sim.parse.string_field(allocator, Self, "name", contents),
             try sim.parse.field(allocator, f64, Self, "press", contents),
             try sim.parse.field(allocator, f64, Self, "temp", contents),
-            try sim.intrinsic.FluidLookup.from_str(
-                try sim.parse.string_field(allocator, Self, "fluid", contents)
-            ),
+            try sim.intrinsic.FluidLookup.from_str(try sim.parse.string_field(allocator, Self, "fluid", contents)),
 
             // 20ksi is unlikley lol (at least in my personal life)
             try sim.parse.optional_field(allocator, f64, Self, "max_press", contents) orelse 1.37895e+8,
@@ -492,23 +413,22 @@ pub const UpwindedSteadyVolume = struct{
 
             try sim.parse.optional_field(allocator, f64, Self, "mdot_tol", contents) orelse 1e-6,
         );
-
     }
 
     // =========================================================================
     // Interfaces
     // =========================================================================
 
-    pub fn as_sim_object(self: *Self) sim.SimObject{
-        return sim.SimObject{.UpwindedSteadyVolume = self};
+    pub fn as_sim_object(self: *Self) sim.SimObject {
+        return sim.SimObject{ .UpwindedSteadyVolume = self };
     }
 
-    pub fn as_steadyable(self: *Self) sim.interfaces.Steadyable{
-        return sim.interfaces.Steadyable{.UpwindedSteadyVolume = self};
+    pub fn as_steadyable(self: *Self) sim.interfaces.Steadyable {
+        return sim.interfaces.Steadyable{ .UpwindedSteadyVolume = self };
     }
 
-    pub fn as_volume(self: *Self) Volume{
-        return Volume{.UpwindedSteadyVolume = self};
+    pub fn as_volume(self: *Self) Volume {
+        return Volume{ .UpwindedSteadyVolume = self };
     }
 
     // =========================================================================
@@ -524,7 +444,7 @@ pub const UpwindedSteadyVolume = struct{
         save_array[5] = self.net_mdot;
         save_array[6] = self.hdot_in;
     }
-    
+
     pub fn set_vals(self: *Self, save_array: []f64) void {
         self.hdot_in = save_array[5];
     }
@@ -533,31 +453,30 @@ pub const UpwindedSteadyVolume = struct{
     // Steadyable Methods
     // =========================================================================
 
-    pub fn get_residuals(self: *Self, guesses: []f64) ![]f64{
-        
+    pub fn get_residuals(self: *Self, guesses: []f64) ![]f64 {
         self.intrinsic.press = guesses[0];
 
         self.hdot_in = 0.0;
         self.mdot_in = 0.0;
         self.mdot_out = 0.0;
 
-        for (self.connections_in.items) |c|{
+        for (self.connections_in.items) |c| {
             const mhdot = try c.get_mhdot();
 
-            if (mhdot[0] >= 0.0){
-                self.mdot_in += mhdot[0]; 
-                self.hdot_in += mhdot[1]; 
-            } else{
+            if (mhdot[0] >= 0.0) {
+                self.mdot_in += mhdot[0];
+                self.hdot_in += mhdot[1];
+            } else {
                 self.mdot_out += -mhdot[0];
             }
         }
 
-        for (self.connections_out.items) |c|{
+        for (self.connections_out.items) |c| {
             const mhdot = try c.get_mhdot();
 
-            if (mhdot[0] >= 0.0){
-                self.mdot_out += mhdot[0]; 
-            } else{
+            if (mhdot[0] >= 0.0) {
+                self.mdot_out += mhdot[0];
+            } else {
                 self.mdot_in += -mhdot[0];
                 self.hdot_in += -mhdot[1];
             }
@@ -569,7 +488,7 @@ pub const UpwindedSteadyVolume = struct{
         var sp_enthalpy: f64 = 0.0;
         if (self.mdot_in == 0.0) {
             sp_enthalpy = self.intrinsic.sp_enthalpy; // If there is no mdot... well
-        } else{
+        } else {
             sp_enthalpy = self.hdot_in / self.mdot_in;
         }
 
@@ -581,9 +500,8 @@ pub const UpwindedSteadyVolume = struct{
         return self.residuals[0..];
     }
 
-    pub fn get_intial_guess(self: *Self) []f64{
+    pub fn get_intial_guess(self: *Self) []f64 {
         self.residuals[0] = self.intrinsic.press;
         return self.residuals[0..];
     }
-
 };

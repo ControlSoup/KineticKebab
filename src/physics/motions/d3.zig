@@ -7,29 +7,28 @@ pub const Motion = struct {
     const Self = @This();
 
     pub const header = [14][]const u8{
-        "pos.x [m]", 
-        "vel.x [m/s]", 
-        "accel.x [m/s^2]", 
-        "net_force.x [N]", 
-        "pos.y [m]", 
-        "vel.y [m/s]", 
-        "accel.y [m/s^2]", 
-        "net_force.y [N]", 
-        "mass [kg]", 
-        "theta [rad]", 
-        "theta_dot [rad/s]", 
-        "theta_ddot [rad/s^2]", 
-        "net_moment [N*m]", 
+        "pos.x [m]",
+        "vel.x [m/s]",
+        "accel.x [m/s^2]",
+        "net_force.x [N]",
+        "pos.y [m]",
+        "vel.y [m/s]",
+        "accel.y [m/s^2]",
+        "net_force.y [N]",
+        "mass [kg]",
+        "theta [rad]",
+        "theta_dot [rad/s]",
+        "theta_ddot [rad/s^2]",
+        "net_moment [N*m]",
         "rotational_inertia [kg*m^2]",
     };
 
     name: []const u8,
 
-
     pos: sim.math.Vec2,
     theta: f64,
     mass: f64,
-    rotational_inertia: f64, 
+    rotational_inertia: f64,
 
     vel: sim.math.Vec2 = sim.math.Vec2.init_zeros(),
     accel: sim.math.Vec2 = sim.math.Vec2.init_zeros(),
@@ -41,26 +40,19 @@ pub const Motion = struct {
 
     pub fn init(
         allocator: std.mem.Allocator,
-        name: []const u8, 
+        name: []const u8,
         pos_x: f64,
         pos_y: f64,
         theta: f64,
         rotational_inertia: f64,
         mass: f64,
-    ) !Self{
-        return Self{
-            .name = name, 
-            .mass = mass,
-            .pos = sim.math.Vec2.init(pos_x, pos_y),
-            .theta = theta,
-            .rotational_inertia = rotational_inertia,
-            .connections = std.ArrayList(sim.forces.d3.Force).init(allocator)
-        };
+    ) !Self {
+        return Self{ .name = name, .mass = mass, .pos = sim.math.Vec2.init(pos_x, pos_y), .theta = theta, .rotational_inertia = rotational_inertia, .connections = std.ArrayList(sim.forces.d3.Force).init(allocator) };
     }
 
     pub fn create(
-        allocator: std.mem.Allocator, 
-        name: []const u8, 
+        allocator: std.mem.Allocator,
+        name: []const u8,
         pos_x: f64,
         pos_y: f64,
         theta: f64,
@@ -72,13 +64,9 @@ pub const Motion = struct {
         return ptr;
     }
 
-    pub fn from_json(
-        allocator: std.mem.Allocator,
-        contents: std.json.Value
-    ) !*Motion{
-
+    pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Motion {
         return try create(
-            allocator, 
+            allocator,
             try sim.parse.string_field(allocator, Self, "name", contents),
             try sim.parse.field(allocator, f64, Self, "pos.x", contents),
             try sim.parse.field(allocator, f64, Self, "pos.y", contents),
@@ -97,15 +85,15 @@ pub const Motion = struct {
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{.Motion3DOF = self};
+        return sim.SimObject{ .Motion3DOF = self };
     }
 
     pub fn as_updateable(self: *Self) sim.interfaces.Updatable {
-        return sim.interfaces.Updatable{.Motion3DOF = self};
+        return sim.interfaces.Updatable{ .Motion3DOF = self };
     }
 
     pub fn as_integratable(self: *Self) sim.interfaces.Integratable {
-        return sim.interfaces.Integratable{.Motion3DOF = self};
+        return sim.interfaces.Integratable{ .Motion3DOF = self };
     }
 
     // =========================================================================
@@ -128,22 +116,22 @@ pub const Motion = struct {
         save_array[12] = self.net_moment;
         save_array[13] = self.rotational_inertia;
     }
-    
+
     pub fn set_vals(self: *Self, save_array: []f64) void {
-        self.pos.i = save_array[0] ;
-        self.vel.i = save_array[1] ;
-        self.accel.i = save_array[2] ;
-        self.net_force.i = save_array[3] ;
-        self.pos.j = save_array[4] ;
-        self.vel.j = save_array[5] ;
-        self.accel.j = save_array[6] ;
-        self.net_force.j = save_array[7] ;
-        self.mass = save_array[8] ;
-        self.theta = save_array[9] ;
-        self.theta_dot = save_array[10] ;
-        self.theta_ddot = save_array[11] ;
-        self.net_moment = save_array[12] ;
-        self.rotational_inertia = save_array[13] ;
+        self.pos.i = save_array[0];
+        self.vel.i = save_array[1];
+        self.accel.i = save_array[2];
+        self.net_force.i = save_array[3];
+        self.pos.j = save_array[4];
+        self.vel.j = save_array[5];
+        self.accel.j = save_array[6];
+        self.net_force.j = save_array[7];
+        self.mass = save_array[8];
+        self.theta = save_array[9];
+        self.theta_dot = save_array[10];
+        self.theta_ddot = save_array[11];
+        self.net_moment = save_array[12];
+        self.rotational_inertia = save_array[13];
     }
 
     // =========================================================================
@@ -155,7 +143,7 @@ pub const Motion = struct {
         self.net_force = sim.math.Vec2.init_zeros();
         self.net_moment = 0.0;
 
-        var force_moment_arr = [3]f64{0.0, 0.0, 0.0};
+        var force_moment_arr = [3]f64{ 0.0, 0.0, 0.0 };
 
         for (self.connections.items) |force| {
             force_moment_arr = try force.get_force_moment_arr();
@@ -185,17 +173,7 @@ pub const Motion = struct {
     }
 
     pub fn get_state(self: *Self) [MAX_STATE_LEN]f64 {
-        return [9]f64{ 
-            self.accel.i, 
-            self.vel.i, 
-            self.pos.i, 
-            self.accel.j, 
-            self.vel.j, 
-            self.pos.j, 
-            self.theta_ddot, 
-            self.theta_dot, 
-            self.theta 
-        };
+        return [9]f64{ self.accel.i, self.vel.i, self.pos.i, self.accel.j, self.vel.j, self.pos.j, self.theta_ddot, self.theta_dot, self.theta };
     }
 
     pub fn get_dstate(self: *Self, state: [MAX_STATE_LEN]f64) [MAX_STATE_LEN]f64 {
@@ -212,5 +190,4 @@ pub const Motion = struct {
             state[7],
         };
     }
-     
 };

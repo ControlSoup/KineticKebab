@@ -1,78 +1,77 @@
 const std = @import("std");
 const sim = @import("../sim.zig");
 
-test "Motion3DOF"{
-    // ========================================================================= 
+test "Motion3DOF" {
+    // =========================================================================
     // Allocation
-    // ========================================================================= 
+    // =========================================================================
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     const allocator = arena.allocator();
     defer arena.deinit();
 
-    // ========================================================================= 
+    // =========================================================================
     // Json
-    // ========================================================================= 
+    // =========================================================================
 
-    var json = 
-    \\{
-    \\    "SimOptions":{
-    \\        "dt": 1e-3, 
-    \\        "integration_method": "Rk4" 
-    \\    },
-    \\    "SimObjects":[
-    \\        {
-    \\            "object": "Motion3DOF",
-    \\            "name": "TestSimpleOnly",
-    \\            "pos.x": 0.0,
-    \\            "pos.y": 0.0,
-    \\            "theta": 0.0,
-    \\            "rotational_inertia": 1.0,
-    \\            "mass": 1.0,
-    \\            "connections_in": ["TestSimple"]
-    \\        },
-    \\        {
-    \\            "object": "SimpleForce3DOF",
-    \\            "name": "TestSimple",
-    \\            "force.x": 1.0,
-    \\            "force.y": 1.0,
-    \\            "moment": 1.0
-    \\        },
-    \\        {
-    \\            "object": "Motion3DOF",
-    \\            "name": "TestBodySimpleOnly",
-    \\            "pos.x": 0.0,
-    \\            "pos.y": 0.0,
-    \\            "theta": 1.5707963267948966,
-    \\            "rotational_inertia": 1.0,
-    \\            "mass": 1.0,
-    \\            "connections_in": ["TestSimple2", "TestBodySimple"]
-    \\        },
-    \\        {
-    \\            "object": "SimpleForce3DOF",
-    \\            "name": "TestSimple2",
-    \\            "force.x": 0.0,
-    \\            "force.y": -1.0,
-    \\            "moment": -1.0 
-    \\        },
-    \\        {
-    \\            "object": "BodySimpleForce3DOF",
-    \\            "name": "TestBodySimple",
-    \\            "loc_cg.i": 0.0,
-    \\            "loc_cg.j": 0.5,
-    \\            "force.i": 2.0,
-    \\            "force.j": 0.0
-    \\        }
-    \\    ]
-    \\}
+    var json =
+        \\{
+        \\    "SimOptions":{
+        \\        "dt": 1e-3, 
+        \\        "integration_method": "Rk4" 
+        \\    },
+        \\    "SimObjects":[
+        \\        {
+        \\            "object": "Motion3DOF",
+        \\            "name": "TestSimpleOnly",
+        \\            "pos.x": 0.0,
+        \\            "pos.y": 0.0,
+        \\            "theta": 0.0,
+        \\            "rotational_inertia": 1.0,
+        \\            "mass": 1.0,
+        \\            "connections_in": ["TestSimple"]
+        \\        },
+        \\        {
+        \\            "object": "SimpleForce3DOF",
+        \\            "name": "TestSimple",
+        \\            "force.x": 1.0,
+        \\            "force.y": 1.0,
+        \\            "moment": 1.0
+        \\        },
+        \\        {
+        \\            "object": "Motion3DOF",
+        \\            "name": "TestBodySimpleOnly",
+        \\            "pos.x": 0.0,
+        \\            "pos.y": 0.0,
+        \\            "theta": 1.5707963267948966,
+        \\            "rotational_inertia": 1.0,
+        \\            "mass": 1.0,
+        \\            "connections_in": ["TestSimple2", "TestBodySimple"]
+        \\        },
+        \\        {
+        \\            "object": "SimpleForce3DOF",
+        \\            "name": "TestSimple2",
+        \\            "force.x": 0.0,
+        \\            "force.y": -1.0,
+        \\            "moment": -1.0 
+        \\        },
+        \\        {
+        \\            "object": "BodySimpleForce3DOF",
+        \\            "name": "TestBodySimple",
+        \\            "loc_cg.i": 0.0,
+        \\            "loc_cg.j": 0.5,
+        \\            "force.i": 2.0,
+        \\            "force.j": 0.0
+        \\        }
+        \\    ]
+        \\}
     ;
 
-    // ========================================================================= 
+    // =========================================================================
     // Sim
-    // ========================================================================= 
+    // =========================================================================
     const model = try sim.parse.json_sim(allocator, json[0..]);
     const t = 1.0;
     try model.step_duration(t);
-    
 
     // Test Simple Force
     try std.testing.expectApproxEqRel(
@@ -115,7 +114,7 @@ test "Motion3DOF"{
         try model.get_value_by_name("sim.time [s]"),
         1e-6,
     );
-    
+
     // Test Body
     try std.testing.expectApproxEqAbs(
         0.0,
@@ -152,5 +151,4 @@ test "Motion3DOF"{
     );
 
     try model.end();
-
 }

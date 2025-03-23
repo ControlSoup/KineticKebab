@@ -5,28 +5,14 @@ const c = @cImport({
 
 // =============================================================================
 // Coolprop Wrapper Functions
-// For testing you require the static library libCoolProp.so.6 in /usr/lib64 and/or lib 
+// For testing you require the static library libCoolProp.so.6 in /usr/lib64 and/or lib
 // =============================================================================
 
-pub fn get_property(
-    output: []const u8, 
-    name1: []const u8, 
-    prop1: f64, 
-    name2: []const u8, 
-    prop2: f64, 
-    fluid: []const u8
-) f64{
-    return c.PropsSI(
-        output.ptr, 
-        name1.ptr, 
-        prop1, 
-        name2.ptr, 
-        prop2, 
-        fluid.ptr
-    );
+pub fn get_property(output: []const u8, name1: []const u8, prop1: f64, name2: []const u8, prop2: f64, fluid: []const u8) f64 {
+    return c.PropsSI(output.ptr, name1.ptr, prop1, name2.ptr, prop2, fluid.ptr);
 }
 
-test "coolprop_wrapper"{
+test "coolprop_wrapper" {
     const d = get_property("D", "P", 100000, "T", 300, "NITROGEN");
     const a = get_property("A", "P", 100000, "T", 300, "NITROGEN");
     const s = get_property("S", "P", 100000, "T", 300, "NITROGEN");

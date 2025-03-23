@@ -21,8 +21,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    so.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
-    so.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    so.addIncludePath(.{ .src_path = .{ .owner = b, .sub_path = "src/3rdparty/" } });
+    so.addLibraryPath(.{ .src_path = .{ .owner = b, .sub_path = "src/3rdparty/" } });
     so.linkSystemLibrary("CoolProp");
     so.linkLibC();
 
@@ -31,7 +31,6 @@ pub fn build(b: *std.Build) void {
     // step when running `zig build`).
     b.installArtifact(so);
 
-
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const lib_unit_tests = b.addTest(.{
@@ -39,9 +38,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    lib_unit_tests.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/_model_tests/"}});
-    lib_unit_tests.addIncludePath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
-    lib_unit_tests.addLibraryPath(.{.src_path = .{.owner = b, .sub_path = "src/3rdparty/"}});
+    lib_unit_tests.addIncludePath(.{ .src_path = .{ .owner = b, .sub_path = "src/_model_tests/" } });
+    lib_unit_tests.addIncludePath(.{ .src_path = .{ .owner = b, .sub_path = "src/3rdparty/" } });
+    lib_unit_tests.addLibraryPath(.{ .src_path = .{ .owner = b, .sub_path = "src/3rdparty/" } });
     lib_unit_tests.linkSystemLibrary("CoolProp");
     lib_unit_tests.linkLibC();
 

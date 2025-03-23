@@ -10,17 +10,13 @@ fn from_opaque_to_sim(curr_sim: SimOpaque) *sim.Sim {
     return @as(*sim.Sim, @ptrCast(curr_sim));
 }
 
-export fn json_to_sim(json_content: *const u8, json_len: usize) callconv(.C) SimOpaque { 
+export fn json_to_sim(json_content: *const u8, json_len: usize) callconv(.C) SimOpaque {
     const json_string: []const u8 = @as([*]const u8, @ptrCast(json_content))[0..json_len];
     const result = sim.parse.json_sim(allocator, json_string) catch |e| std.debug.panic("{!}", .{e});
     return @as(SimOpaque, @ptrCast(result));
 }
 
-
-pub const StateNames = extern struct {
-    len: usize,
-    all_names: [*][*]const u8
-};
+pub const StateNames = extern struct { len: usize, all_names: [*][*]const u8 };
 
 export fn state_names(curr_sim: SimOpaque) callconv(.C) StateNames {
     const sim_ptr = from_opaque_to_sim(curr_sim);
@@ -43,10 +39,9 @@ export fn state_names(curr_sim: SimOpaque) callconv(.C) StateNames {
     };
 }
 
-
-export fn state_vals(curr_sim: SimOpaque) callconv(.C) extern struct{len: usize, vals: *const f64}{
+export fn state_vals(curr_sim: SimOpaque) callconv(.C) extern struct { len: usize, vals: *const f64 } {
     const sim_ptr = from_opaque_to_sim(curr_sim);
-    return .{.len = sim_ptr.state_vals.items.len, .vals = @as(*const f64, @ptrCast(sim_ptr.state_vals.items))};
+    return .{ .len = sim_ptr.state_vals.items.len, .vals = @as(*const f64, @ptrCast(sim_ptr.state_vals.items)) };
 }
 
 export fn step(curr_sim: SimOpaque) callconv(.C) void {
@@ -71,24 +66,23 @@ export fn get_value_by_name(curr_sim: SimOpaque, name: *const u8, name_len: usiz
     return sim_ptr.get_value_by_name(name_slice) catch |e| std.debug.panic("{!}", .{e});
 }
 
-export fn end(curr_sim: SimOpaque) callconv(.C) void{
+export fn end(curr_sim: SimOpaque) callconv(.C) void {
     const sim_ptr = from_opaque_to_sim(curr_sim);
     sim_ptr.end() catch |e| std.debug.panic("{!}", .{e});
     arena.deinit();
 }
 
-export fn solve_steady(curr_sim: SimOpaque) callconv(.C) void{
+export fn solve_steady(curr_sim: SimOpaque) callconv(.C) void {
     const sim_ptr = from_opaque_to_sim(curr_sim);
     sim_ptr.solve_steady() catch |e| std.debug.panic("{!}", .{e});
 }
 
-
-export fn print_jacobian(curr_sim: SimOpaque) callconv(.C) void{
+export fn print_jacobian(curr_sim: SimOpaque) callconv(.C) void {
     const sim_ptr = from_opaque_to_sim(curr_sim);
     sim_ptr.steady.__print("") catch |e| std.debug.panic("{!}", .{e});
 }
 
-export fn iter_steady(curr_sim: SimOpaque) callconv(.C) bool{
+export fn iter_steady(curr_sim: SimOpaque) callconv(.C) bool {
     const sim_ptr = from_opaque_to_sim(curr_sim);
     return sim_ptr.iter_steady() catch |e| std.debug.panic("{!}", .{e});
 }

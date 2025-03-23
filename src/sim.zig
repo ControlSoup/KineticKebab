@@ -15,18 +15,7 @@ pub const motions = @import("physics/motions/motions.zig");
 pub const volumes = @import("fluids/volumes.zig");
 pub const restrictions = @import("fluids/restrictions.zig");
 
-pub const errors = parse.errors || error{
-    SimObjectDuplicate,
-    SimObjectDoesNotExist,
-    InputLessThanZero,
-    InvalidInput,
-    AlreadyConnected,
-    MissingConnection,
-    MismatchedLength,
-    CannotSet,
-    InvalidInterface,
-    ConvergenceError
-};
+pub const errors = parse.errors || error{ SimObjectDuplicate, SimObjectDoesNotExist, InputLessThanZero, InvalidInput, AlreadyConnected, MissingConnection, MismatchedLength, CannotSet, InvalidInterface, ConvergenceError };
 
 pub const SimObject = union(enum) {
     const Self = @This();
@@ -55,27 +44,27 @@ pub const SimObject = union(enum) {
     Integrator: *interfaces.Integrator,
 
     pub fn as_restriction(self: *const Self) !restrictions.Restriction {
-        return switch (self.*){
+        return switch (self.*) {
             .Orifice => |impl| impl.as_restriction(),
             .ConstantMdot => |impl| impl.as_restriction(),
-            inline else => errors.InvalidInterface
+            inline else => errors.InvalidInterface,
         };
     }
 
-    pub fn as_d1force(self: *const Self) !forces.d1.Force{
-        return switch (self.*){
+    pub fn as_d1force(self: *const Self) !forces.d1.Force {
+        return switch (self.*) {
             .SimpleForce => |impl| impl.as_force(),
             .SpringForce => |impl| impl.as_force(),
-            inline else => errors.InvalidInterface
+            inline else => errors.InvalidInterface,
         };
     }
 
-    pub fn as_d3force(self: *const Self) !forces.d3.Force{
-        return switch (self.*){
+    pub fn as_d3force(self: *const Self) !forces.d3.Force {
+        return switch (self.*) {
             // 3DOF
             .SimpleForce3DOF => |impl| impl.as_force(),
             .BodySimpleForce3DOF => |impl| impl.as_force(),
-            inline else => errors.InvalidInterface
+            inline else => errors.InvalidInterface,
         };
     }
 
@@ -167,15 +156,14 @@ pub const SimObject = union(enum) {
     // }
     // break :blk error.InvalidInterface;
     //}
-    // 
-
+    //
 
 };
 
 pub const Sim = struct {
     const Self = @This();
     const sim_name = "sim";
-    const sim_header = [_][]const u8{"steady_steps [-]", "transient_steps [-]", "time [s]"};
+    const sim_header = [_][]const u8{ "steady_steps [-]", "transient_steps [-]", "time [s]" };
 
     allocator: std.mem.Allocator,
 
@@ -183,7 +171,7 @@ pub const Sim = struct {
     transient_steps: usize = 0,
 
     sim_objs: std.ArrayList(SimObject),
-    integrator: *interfaces.Integrator, 
+    integrator: *interfaces.Integrator,
     max_iter: usize,
     updatables: std.ArrayList(interfaces.Updatable),
 
@@ -197,12 +185,11 @@ pub const Sim = struct {
     // Sim Init
 
     pub fn init(allocator: std.mem.Allocator, integrator: *interfaces.Integrator, max_iter: usize) !Self {
-
-        return Self{ 
-            .allocator = allocator, 
-            .sim_objs = std.ArrayList(SimObject).init(allocator), 
-            .updatables = std.ArrayList(interfaces.Updatable).init(allocator), 
-            .state_vals = std.ArrayList(f64).init(allocator), 
+        return Self{
+            .allocator = allocator,
+            .sim_objs = std.ArrayList(SimObject).init(allocator),
+            .updatables = std.ArrayList(interfaces.Updatable).init(allocator),
+            .state_vals = std.ArrayList(f64).init(allocator),
             .state_names = std.ArrayList([]const u8).init(allocator),
             .steady = interfaces.SteadySolver.init(allocator),
             .max_iter = max_iter,
@@ -218,54 +205,46 @@ pub const Sim = struct {
 
     pub fn from_json(allocator: std.mem.Allocator, contents: std.json.Value) !*Self {
         const integrator_ptr = try interfaces.Integrator.from_json(allocator, contents);
-        const new = try create(
-            allocator, 
-            integrator_ptr,
-            (try parse.optional_field(allocator, usize, Self, "max_iter", contents)) orelse 100
-        );
+        const new = try create(allocator, integrator_ptr, (try parse.optional_field(allocator, usize, Self, "max_iter", contents)) orelse 100);
         return new;
     }
 
     // Adding Objects
     pub fn add_sim_obj(self: *Self, obj: SimObject) !void {
-
         try self._name_exists(obj.name());
 
         try self.sim_objs.append(obj);
         for (obj.get_header()) |header| {
-
-            const name: []u8 = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ obj.name(), header});
+            const name: []u8 = try std.fmt.allocPrint(self.allocator, "{s}.{s}", .{ obj.name(), header });
 
             try self.state_names.append(name);
             try self.state_vals.append(std.math.nan(f64));
         }
-        obj.save_vals(
-            self.state_vals.items[(self.state_vals.items.len - obj.save_len())..]
-        );
+        obj.save_vals(self.state_vals.items[(self.state_vals.items.len - obj.save_len())..]);
     }
 
     pub fn add_updateable(self: *Self, updateable: interfaces.Updatable) !void {
         try self.updatables.append(updateable);
     }
 
-    pub fn add_integratable(self: *Self, integratable: interfaces.Integratable) !void{
+    pub fn add_integratable(self: *Self, integratable: interfaces.Integratable) !void {
         try self.integrator.add_obj(integratable);
     }
 
-    pub fn add_steadyable(self: *Self, steadyable: interfaces.Steadyable) !void{
+    pub fn add_steadyable(self: *Self, steadyable: interfaces.Steadyable) !void {
         try self.steady.add_obj(steadyable);
     }
 
     pub fn step(self: *Self) !void {
-        
+
         // Update user enforced states
-        if (self.updated_vals){
+        if (self.updated_vals) {
             try self._set_vals();
             self.updated_vals = false;
         }
 
         // Update anythign that can be
-        for (self.updatables.items) |updateable|{
+        for (self.updatables.items) |updateable| {
             try updateable.update();
         }
 
@@ -280,19 +259,17 @@ pub const Sim = struct {
         try self._save_vals();
     }
 
-    pub fn step_duration(self: *Self, duration: f64) !void{
-
-        if (0.0 > duration){
+    pub fn step_duration(self: *Self, duration: f64) !void {
+        if (0.0 > duration) {
             std.log.err("step_duration must be > 0, got [{d}]", .{duration});
             return errors.InputLessThanZero;
         }
 
         const start = self.time;
-        while(@abs((self.time - start) - duration) > 1e-8){
-
+        while (@abs((self.time - start) - duration) > 1e-8) {
             if (((self.time - start) + self.integrator.new_dt) > duration) {
                 self.integrator.new_dt = duration - (self.time - start);
-                self.integrator.enforce_dt = true; 
+                self.integrator.enforce_dt = true;
                 try self.step();
                 self.integrator.enforce_dt = false;
                 break;
@@ -300,10 +277,9 @@ pub const Sim = struct {
 
             try self.step();
         }
-
     }
 
-    pub fn iter_steady(self: *Self) !bool{
+    pub fn iter_steady(self: *Self) !bool {
         for (self.updatables.items) |obj| try obj.update();
         const solved = try self.steady.iter();
         for (self.updatables.items) |obj| try obj.update();
@@ -312,10 +288,10 @@ pub const Sim = struct {
         return solved;
     }
 
-    pub fn solve_steady(self: *Self) !void{
+    pub fn solve_steady(self: *Self) !void {
         for (0..self.max_iter) |_| {
             for (self.updatables.items) |obj| try obj.update();
-            if (try self.steady.iter()){
+            if (try self.steady.iter()) {
                 for (self.updatables.items) |obj| try obj.update();
                 try self._save_vals();
                 return;
@@ -325,13 +301,12 @@ pub const Sim = struct {
         return errors.ConvergenceError;
     }
 
-    pub fn end(self: *Self) !void{
+    pub fn end(self: *Self) !void {
         _ = self;
     }
 
-    pub fn get_index(self: *Self, name: [] const u8) !usize{
-    
-        for (self.state_names.items, 0..) |obj, i|{
+    pub fn get_index(self: *Self, name: []const u8) !usize {
+        for (self.state_names.items, 0..) |obj, i| {
             if (std.mem.eql(u8, obj, name)) return i;
         }
 
@@ -339,15 +314,14 @@ pub const Sim = struct {
         return errors.SimObjectDoesNotExist;
     }
 
-    pub fn get_value_by_name(self: *Self, name: []const u8) !f64{
+    pub fn get_value_by_name(self: *Self, name: []const u8) !f64 {
         // You usually have <50 items in a sim, so linear serach is fine
         const index = try self.get_index(name);
         return self.state_vals.items[index];
     }
 
-    pub fn get_sim_object_by_name(self: *Self, name: []const u8) !SimObject{
-
-        for (self.sim_objs.items) |obj|{
+    pub fn get_sim_object_by_name(self: *Self, name: []const u8) !SimObject {
+        for (self.sim_objs.items) |obj| {
             if (std.mem.eql(u8, obj.name(), name)) return obj;
         }
 
@@ -355,22 +329,22 @@ pub const Sim = struct {
         return errors.SimObjectDoesNotExist;
     }
 
-    pub fn set_value(self: *Self, idx: usize, value: f64) !void{
-        if (idx < 0 or idx > self.state_vals.items.len - 1){
-            std.log.err("When setting a value, indx must be >= 0 and less then {d}", .{self.state_vals.items.len - 1}); 
+    pub fn set_value(self: *Self, idx: usize, value: f64) !void {
+        if (idx < 0 or idx > self.state_vals.items.len - 1) {
+            std.log.err("When setting a value, indx must be >= 0 and less then {d}", .{self.state_vals.items.len - 1});
             return errors.InvalidInput;
         }
         self.state_vals.items[idx] = value;
         self.updated_vals = true;
     }
 
-    pub fn set_value_by_name(self: *Self, name: []const u8, value: f64) !void{
-        const idx = try self.get_index(name); 
+    pub fn set_value_by_name(self: *Self, name: []const u8, value: f64) !void {
+        const idx = try self.get_index(name);
         try self.set_value(idx, value);
     }
 
-    pub fn as_sim_object(self: *Self) SimObject{
-        return SimObject{.SimInfo =  self};
+    pub fn as_sim_object(self: *Self) SimObject {
+        return SimObject{ .SimInfo = self };
     }
 
     // Private / Dev Methods
@@ -381,24 +355,23 @@ pub const Sim = struct {
         }
     }
 
-    fn _name_exists(self: *Self, name1: []const u8) !void{
-        for (self.state_names.items) |name2|{
+    fn _name_exists(self: *Self, name1: []const u8) !void {
+        for (self.state_names.items) |name2| {
             if (std.mem.eql(u8, name1, name2)) {
                 std.log.err("Object Name [{s}] already exists, please remove duplicate", .{name1});
                 return errors.SimObjectDuplicate;
             }
-        }            
+        }
     }
 
-    fn _save_vals(self: *Self) !void{
+    fn _save_vals(self: *Self) !void {
         var buff_loc: usize = 0;
 
-        for (self.updatables.items) |obj|{
+        for (self.updatables.items) |obj| {
             try obj.update();
         }
 
-        for (self.sim_objs.items) |obj|{
-
+        for (self.sim_objs.items) |obj| {
             const len: usize = obj.save_len();
 
             const save_buffer = self.state_vals.items[buff_loc .. buff_loc + len];
@@ -409,14 +382,12 @@ pub const Sim = struct {
             obj.save_vals(save_buffer);
 
             buff_loc += len;
-
         }
     }
 
-    fn _set_vals(self: *Self) !void{
+    fn _set_vals(self: *Self) !void {
         var buff_loc: usize = 0;
-        for (self.sim_objs.items) |obj|{
-
+        for (self.sim_objs.items) |obj| {
             const len: usize = obj.save_len();
 
             const save_buffer = self.state_vals.items[buff_loc .. buff_loc + len];
@@ -433,7 +404,6 @@ pub const Sim = struct {
             try obj.update();
         }
     }
-
 };
 
 test {

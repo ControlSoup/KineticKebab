@@ -7,7 +7,6 @@ pub const Updatable = union(enum) {
     StaticVolume: *sim.volumes.StaticVolume,
     Motion: *sim.motions.d1.Motion,
     Motion3DOF: *sim.motions.d3.Motion,
-    
 
     pub fn update(self: *const Self) !void {
         return switch (self.*) {
