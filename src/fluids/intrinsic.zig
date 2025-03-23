@@ -1,5 +1,6 @@
 const std = @import("std");
 const sim = @import("../sim.zig");
+const equations = @import("equations/equations.zig");
 
 // =============================================================================
 // Fluids
@@ -21,7 +22,7 @@ pub const FluidLookup = union(enum) {
     }
 };
 
-pub const NitrogenIdealGas = FluidLookup{ .IdealGas = IdealGas.init(1040.0, 1.4, 0.02002) };
+pub const NitrogenIdealGas = FluidLookup{ .IdealGas = IdealGas.init(1.4, 0.02002) };
 
 // =============================================================================
 // FluidState
@@ -59,7 +60,14 @@ pub const FluidState = struct {
                 self.sos = sim.coolprop.get_property("A", "P", self.press, "T", self.temp, impl);
                 self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", self.press, "T", self.temp, impl);
             },
-            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{}),
+            .IdealGas => |impl| {
+                self.density = equations.ideal_gas.d_from_pt(impl.sp_r, self.press, self.temp);
+                self.sp_inenergy = equations.ideal_gas.u_from_t(impl.cv, impl.t0, self.temp);
+                self.sp_enthalpy = equations.ideal_gas.h_from_t(impl.cp, impl.t0, self.temp);
+                self.sp_entropy = equations.ideal_gas.s_from_pt(impl.sp_r, impl.cp, self.press, impl.p0, self.temp, impl.t0);
+                self.sos = equations.ideal_gas.sos(impl.gamma, impl.sp_r, self.temp);
+                self.gamma = impl.gamma;
+            },
         }
     }
 
@@ -76,7 +84,11 @@ pub const FluidState = struct {
                 self.sos = sim.coolprop.get_property("A", "D", density, "U", sp_inenergy, impl);
                 self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "D", density, "U", sp_inenergy, impl);
             },
-            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{}),
+            .IdealGas => |impl| {
+                const temp = equations.ideal_gas.t_from_u(impl.cv, self.sp_inenergy, impl.t0);
+                const press = equations.ideal_gas.p_from_dt(impl.sp_r, self.density, self.temp);
+                self.update_from_pt(press, temp);
+            },
         }
     }
 
@@ -93,7 +105,10 @@ pub const FluidState = struct {
                 self.sos = sim.coolprop.get_property("A", "P", press, "H", sp_enthalpy, impl);
                 self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", press, "H", sp_enthalpy, impl);
             },
-            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{}),
+            .IdealGas => |impl| {
+                const temp = equations.ideal_gas.t_from_h(impl.cv, self.sp_enthalpy, impl.t0);
+                self.update_from_pt(self.press, temp);
+            },
         }
     }
 
@@ -110,7 +125,10 @@ pub const FluidState = struct {
                 self.sos = sim.coolprop.get_property("A", "P", press, "U", sp_inenergy, impl);
                 self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", press, "U", sp_inenergy, impl);
             },
-            .IdealGas => std.debug.panic("Have not implemented ideal gases in full", .{}),
+            .IdealGas => |impl| {
+                const temp = equations.ideal_gas.t_from_u(impl.cv, self.sp_inenergy, impl.t0);
+                self.update_from_pt(self.press, temp);
+            },
         }
     }
 
@@ -128,61 +146,60 @@ pub const FluidState = struct {
 // =============================================================================
 // Lookup Methods
 // =============================================================================
+pub const r = 8.31446261815324;
+pub const t0 = 293.15;
+pub const p0 = 101_325;
 
 pub const IdealGas = struct {
     const Self = @This();
-    pub const r = 8.31446261815324;
-    pub const t0 = 293.15;
-    pub const p0 = 101_325;
 
     cp: f64,
     cv: f64,
+    sp_r: f64,
     gamma: f64,
-    molar_mass: f64,
-    enthalpy0: f64 = 0.0,
-    entropy0: f64 = 0.0,
+    p0: f64,
+    t0: f64,
 
-    pub fn init(cp: f64, gamma: f64, molar_mass: f64) Self {
-        var gas = IdealGas{
-            .cp = cp,
-            .cv = cp / gamma,
+    pub fn init(gamma: f64, sp_r: f64) Self {
+        return IdealGas{
+            //
             .gamma = gamma,
-            .molar_mass = molar_mass,
+            .sp_r = sp_r,
+            .cp = equations.ideal_gas.cp_from_base(sp_r, gamma),
+            .cv = equations.ideal_gas.cv_from_base(sp_r, gamma),
+            .p0 = p0,
+            .t0 = t0,
         };
-
-        gas.enthalpy0 = ref_enthalpy(gas);
-        gas.entropy0 = ref_entropy(gas);
-
-        return gas;
     }
 };
 
-pub fn ref_enthalpy(ideal_gas: IdealGas) f64 {
-    const inenergy = ideal_gas_sp_inenergy(ideal_gas.cv, IdealGas.t0);
-    const density = ideal_gas_density(ideal_gas.molar_mass, IdealGas.p0, IdealGas.t0);
-    return ideal_gas_sp_enthalpy(inenergy, IdealGas.p0, density);
-}
+test IdealGas {
+    const press = 100_000;
+    const temp = 300;
 
-pub fn ref_entropy(ideal_gas: IdealGas) f64 {
-    return ideal_gas_sp_entropy(ideal_gas.cp, IdealGas.t0, ideal_gas.molar_mass, IdealGas.p0);
-}
+    var gas = FluidState.init(try FluidLookup.from_str("NitrogenIdealGas"), press, temp);
 
-fn ideal_gas_density(molar_mass: f64, press: f64, temp: f64) f64 {
-    return molar_mass * press / (IdealGas.r * temp);
-}
+    try std.testing.expect(gas.press == press);
+    try std.testing.expect(gas.press == temp);
 
-fn ideal_gas_sp_inenergy(cv: f64, temp: f64) f64 {
-    return cv * temp;
-}
+    // Functional check that everything in reversable
+    const density = gas.density;
+    const sp_inenergy = gas.sp_inenergy;
+    const sp_enthalpy = gas.density;
 
-fn ideal_gas_sp_enthalpy(sp_inenergy: f64, press: f64, density: f64) f64 {
-    return sp_inenergy * (press / density);
-}
+    gas.update_from_pt(press, temp);
+    try std.testing.expectApproxEqRel(press, gas.press, 1e-7);
+    try std.testing.expectApproxEqRel(temp, gas.temp, 1e-7);
 
-fn ideal_gas_sp_entropy(cp: f64, temp: f64, molar_mass: f64, press: f64) f64 {
-    return (cp * @log(temp / IdealGas.t0)) - ((IdealGas.r / molar_mass) * (@log(press / IdealGas.p0)));
-}
+    gas.update_from_du(density, sp_inenergy);
+    try std.testing.expectApproxEqRel(density, gas.density, 1e-7);
+    try std.testing.expectApproxEqRel(sp_inenergy, gas.sp_inenergy, 1e-7);
 
-fn ideal_gas_sos(gamma: f64, press: f64, density: f64) f64 {
-    return @sqrt(gamma * press / density);
+    gas.update_from_ph(press, sp_enthalpy);
+    try std.testing.expectApproxEqRel(press, gas.press, 1e-7);
+    try std.testing.expectApproxEqRel(sp_enthalpy, gas.sp_enthalpy, 1e-7);
+
+    gas.update_from_pu(press, sp_inenergy);
+    try std.testing.expectApproxEqRel(density, gas.density, 1e-7);
+    try std.testing.expectApproxEqRel(sp_inenergy, gas.sp_inenergy, 1e-7);
 }
