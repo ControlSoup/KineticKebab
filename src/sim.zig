@@ -14,6 +14,7 @@ pub const forces = @import("physics/forces/forces.zig");
 pub const motions = @import("physics/motions/motions.zig");
 pub const volumes = @import("fluids/volumes.zig");
 pub const restrictions = @import("fluids/restrictions.zig");
+pub const meta = @import("meta/meta.zig");
 
 pub const errors = parse.errors || error{ SimObjectDuplicate, SimObjectDoesNotExist, InputLessThanZero, InvalidInput, AlreadyConnected, MissingConnection, MismatchedLength, CannotSet, InvalidInterface, ConvergenceError };
 
@@ -37,11 +38,10 @@ pub const SimObject = union(enum) {
     BodySimpleForce3DOF: *forces.d3.BodySimple,
     Motion3DOF: *motions.d3.Motion,
 
-    // Sim
+    // Other
     SimInfo: *Sim,
-
-    // Integrator
     Integrator: *interfaces.Integrator,
+    Rooter: *meta.Rooter,
 
     pub fn as_restriction(self: *const Self) !restrictions.Restriction {
         return switch (self.*) {
@@ -108,6 +108,46 @@ pub const SimObject = union(enum) {
             },
             inline else => |impl| impl.set_vals(save_array),
         };
+    }
+
+    pub fn get_field(self: *const Self, field: []const u8) !f64 {
+        switch (self.*) {
+            inline else => |ptr| {
+                const T = std.meta.Child(@TypeOf(ptr));
+                const tenum = std.meta.FieldEnum(T);
+
+                // Error check this is a valid field
+                const tag = std.meta.stringToEnum(tenum, field) orelse {
+                    std.log.err("Obj [{s}] cannot grab field [{s}] for it does not exist", .{ self.name(), field });
+                    return error.InvalidInput;
+                };
+
+                return @field(ptr, @tagName(tag));
+            },
+        }
+    }
+
+    pub fn set_field(self: *const Self, field: []const u8, set_val: f64) !void {
+        switch (self.*) {
+            inline else => |ptr| {
+                const T = std.meta.Child(@TypeOf(ptr));
+                const tenum = std.meta.FieldEnum(T);
+
+                // Error check this is a valid field
+                _ = std.meta.stringToEnum(tenum, field) orelse {
+                    std.log.err("Obj [{s}] cannot grab field [{s}] for it does not exist", .{ self.name(), field });
+                    return error.InvalidInput;
+                };
+
+                switch (tenum) {
+                    inline else => |tag_str| {
+                        if (std.mem.eql(u8, @tagName(tag_str), field)) {
+                            @field(ptr, tag_str) = set_val;
+                        }
+                    },
+                }
+            },
+        }
     }
 
     // Method to dynamically check method avaliblity? Might work?

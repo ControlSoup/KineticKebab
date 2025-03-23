@@ -311,6 +311,7 @@ pub const UpwindedSteadyVolume = struct {
     hdot_in: f64 = 0.0,
 
     // Steady fields
+    perturb: f64,
     maxs: [1]f64,
     mins: [1]f64,
     max_steps: [1]f64,
@@ -324,6 +325,7 @@ pub const UpwindedSteadyVolume = struct {
         press: f64,
         temp: f64,
         fluid: sim.intrinsic.FluidLookup,
+        perturb: f64,
         max_press: f64,
         max_press_step: f64,
         min_press: f64,
@@ -365,7 +367,7 @@ pub const UpwindedSteadyVolume = struct {
             return sim.errors.InvalidInput;
         }
 
-        return Self{ .name = name, .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp), .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator), .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator), .maxs = [1]f64{max_press}, .mins = [1]f64{min_press}, .max_steps = [1]f64{max_press_step}, .min_steps = [1]f64{min_press_step}, .tols = [1]f64{mdot_tol} };
+        return Self{ .name = name, .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp), .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator), .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator), .perturb = perturb, .maxs = [1]f64{max_press}, .mins = [1]f64{min_press}, .max_steps = [1]f64{max_press_step}, .min_steps = [1]f64{min_press_step}, .tols = [1]f64{mdot_tol} };
     }
 
     pub fn create(
@@ -374,6 +376,7 @@ pub const UpwindedSteadyVolume = struct {
         press: f64,
         temp: f64,
         fluid: sim.intrinsic.FluidLookup,
+        perturb: f64,
         max_press: f64,
         max_press_step: f64,
         min_press: f64,
@@ -387,6 +390,7 @@ pub const UpwindedSteadyVolume = struct {
             press,
             temp,
             fluid,
+            perturb,
             max_press,
             max_press_step,
             min_press,
@@ -403,6 +407,8 @@ pub const UpwindedSteadyVolume = struct {
             try sim.parse.field(allocator, f64, Self, "press", contents),
             try sim.parse.field(allocator, f64, Self, "temp", contents),
             try sim.intrinsic.FluidLookup.from_str(try sim.parse.string_field(allocator, Self, "fluid", contents)),
+
+            try sim.parse.optional_field(allocator, f64, Self, "perturb", contents) orelse 5,
 
             // 20ksi is unlikley lol (at least in my personal life)
             try sim.parse.optional_field(allocator, f64, Self, "max_press", contents) orelse 1.37895e+8,

@@ -5,6 +5,7 @@ pub const Steadyable = union(enum) {
     const Self = @This();
 
     UpwindedSteadyVolume: *sim.volumes.UpwindedSteadyVolume,
+    Rooter: *sim.meta.Rooter,
 
     pub fn name(self: *const Self) []const u8 {
         return switch (self.*) {
@@ -51,6 +52,12 @@ pub const Steadyable = union(enum) {
     pub fn get_tols(self: *const Self) []f64 {
         return switch (self.*) {
             inline else => |impl| impl.tols[0..],
+        };
+    }
+
+    pub fn get_perturb(self: *const Self) f64 {
+        return switch (self.*) {
+            inline else => |impl| impl.perturb,
         };
     }
 };
@@ -165,9 +172,7 @@ pub const SteadySolver = struct {
             const obj_guess = self.guesses_unfolded.items[pos_tracker .. pos_tracker + tols.len];
 
             for (obj_guess, 0..) |curr_guess, g_idx| {
-                var perturb = curr_guess * 1.005;
-                if (curr_guess == 0) perturb = 1e-6;
-
+                const perturb = curr_guess + obj.get_perturb();
                 const interval = curr_guess - perturb;
 
                 const temp = obj_guess[g_idx];

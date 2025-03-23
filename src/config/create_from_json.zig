@@ -106,6 +106,11 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
                 const new_obj_ptr = try sim.forces.d3.BodySimple.from_json(allocator, contents);
                 try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
             },
+            .Rooter => {
+                const new_obj_ptr = try sim.meta.Rooter.from_json(allocator, contents);
+                try new_sim_ptr.add_sim_obj(new_obj_ptr.as_sim_object());
+                try new_sim_ptr.add_steadyable(new_obj_ptr.as_steadyable());
+            },
             .SimInfo, .Integrator => {
                 std.log.err("Cannot intialize {s}...silly goose its not a object", .{obj_name});
                 return errors.JsonObjectCreationError;
