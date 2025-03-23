@@ -23,11 +23,6 @@ pub const FluidLookup = union(enum) {
 
 pub const NitrogenIdealGas = FluidLookup{ .IdealGas = IdealGas.init(1040.0, 1.4, 0.02002) };
 
-pub const NitrogenCoolProp: []const u8 = "Nitrogen";
-pub const HeliumCoolProp: []const u8 = "Helium";
-pub const AirCoolProp: []const u8 = "Air";
-pub const WaterCoolProp: []const u8 = "Water";
-
 // =============================================================================
 // FluidState
 // =============================================================================
