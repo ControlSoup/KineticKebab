@@ -78,53 +78,15 @@ pub const SimObject = union(enum) {
 
     pub fn get_header(self: *const Self) []const []const u8 {
         return switch (self.*) {
-
-            // Fluids
-            .ConstantMdot => restrictions.ConstantMdot.header[0..],
-            .Orifice => restrictions.Orifice.header[0..],
-            .VoidVolume => volumes.VoidVolume.header[0..],
-            .StaticVolume => volumes.StaticVolume.header[0..],
-            .UpwindedSteadyVolume => volumes.UpwindedSteadyVolume.header[0..],
-
-            // 1DOF
-            .SimpleForce => forces.d1.Simple.header[0..],
-            .SpringForce => forces.d1.Spring.header[0..],
-            .Motion => motions.d1.Motion.header[0..],
-
-            // 3DOF
-            .SimpleForce3DOF => forces.d3.Simple.header[0..],
-            .BodySimpleForce3DOF => forces.d3.BodySimple.header[0..],
-            .Motion3DOF => motions.d3.Motion.header[0..],
-
-            // Misc
             .SimInfo => Sim.sim_header[0..],
-            .Integrator => interfaces.Integrator.header[0..],
+            inline else => |ptr| std.meta.Child(@TypeOf(ptr)).header[0..],
         };
     }
 
     pub fn save_len(self: *const Self) usize {
         return switch (self.*) {
-
-            // Fluids
-            .ConstantMdot => restrictions.ConstantMdot.header.len,
-            .Orifice => restrictions.Orifice.header.len,
-            .VoidVolume => volumes.VoidVolume.header.len,
-            .StaticVolume => volumes.StaticVolume.header.len,
-            .UpwindedSteadyVolume => volumes.UpwindedSteadyVolume.header.len,
-
-            // 1DOF
-            .SimpleForce => forces.d1.Simple.header.len,
-            .SpringForce => forces.d1.Spring.header.len,
-            .Motion => motions.d1.Motion.header.len,
-
-            // 3DOF
-            .SimpleForce3DOF => forces.d3.Simple.header.len,
-            .BodySimpleForce3DOF => forces.d3.BodySimple.header.len,
-            .Motion3DOF => motions.d3.Motion.header.len,
-
-            //Misc
             .SimInfo => Sim.sim_header.len,
-            .Integrator => interfaces.Integrator.header.len,
+            inline else => |ptr| std.meta.Child(@TypeOf(ptr)).header.len,
         };
     }
 
