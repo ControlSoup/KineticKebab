@@ -15,17 +15,8 @@ pub const FluidLookup = union(enum) {
     pub fn from_str(lookup_str: []const u8) !Self {
         if (std.mem.eql(u8, lookup_str, "NitrogenIdealGas")) {
             return NitrogenIdealGas;
-        } else if (std.mem.eql(u8, lookup_str, NitrogenCoolProp)) {
-            return FluidLookup{ .CoolProp = NitrogenCoolProp };
-        } else if (std.mem.eql(u8, lookup_str, HeliumCoolProp)) {
-            return FluidLookup{ .CoolProp = HeliumCoolProp };
-        } else if (std.mem.eql(u8, lookup_str, AirCoolProp)) {
-            return FluidLookup{ .CoolProp = AirCoolProp };
-        } else if (std.mem.eql(u8, lookup_str, WaterCoolProp)) {
-            return FluidLookup{ .CoolProp = WaterCoolProp };
         } else {
-            std.log.err("Invalid fluid: {s}", .{lookup_str});
-            return sim.errors.InvalidInput;
+            return FluidLookup{ .CoolProp = lookup_str };
         }
     }
 };
