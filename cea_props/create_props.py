@@ -47,7 +47,9 @@ def python_to_zig_str(array: np.array, type: str):
 
 if __name__ == '__main__':
     combos = [
-        ('oxygen', 'ethanol', (0.1, 6), (68947.6, 6.8948e+7))
+        ('oxygen', 'ethanol', (0.1, 6), (68947.6, 6.8948e+7)),
+        ('oxygen', 'IPA', (0.1, 6), (68947.6, 6.8948e+7)),
+        ('N2O', 'IPA', (0.1, 6), (68947.6, 6.8948e+7)),
     ]
 
     pc_count = 100
