@@ -22,7 +22,7 @@ pub const FluidLookup = union(enum) {
     }
 };
 
-pub const NitrogenIdealGas = FluidLookup{ .IdealGas = IdealGas.init(1.4, 0.02002) };
+pub const NitrogenIdealGas = FluidLookup{ .IdealGas = IdealGas.init(1.4, 296.8) };
 
 // =============================================================================
 // FluidState
@@ -62,8 +62,8 @@ pub const FluidState = struct {
             },
             .IdealGas => |impl| {
                 self.density = equations.ideal_gas.d_from_pt(impl.sp_r, self.press, self.temp);
-                self.sp_inenergy = equations.ideal_gas.u_from_t(impl.cv, impl.t0, self.temp);
-                self.sp_enthalpy = equations.ideal_gas.h_from_t(impl.cp, impl.t0, self.temp);
+                self.sp_inenergy = equations.ideal_gas.u_from_t(impl.cv, self.temp, impl.t0);
+                self.sp_enthalpy = equations.ideal_gas.h_from_t(impl.cp, self.temp, impl.t0);
                 self.sp_entropy = equations.ideal_gas.s_from_pt(impl.sp_r, impl.cp, self.press, impl.p0, self.temp, impl.t0);
                 self.sos = equations.ideal_gas.sos(impl.gamma, impl.sp_r, self.temp);
                 self.gamma = impl.gamma;
@@ -106,8 +106,8 @@ pub const FluidState = struct {
                 self.gamma = sim.coolprop.get_property("ISENTROPIC_EXPANSION_COEFFICIENT", "P", press, "H", sp_enthalpy, impl);
             },
             .IdealGas => |impl| {
-                const temp = equations.ideal_gas.t_from_h(impl.cv, self.sp_enthalpy, impl.t0);
-                self.update_from_pt(self.press, temp);
+                const temp = equations.ideal_gas.t_from_h(impl.cp, self.sp_enthalpy, impl.t0);
+                self.update_from_pt(press, temp);
             },
         }
     }
@@ -128,6 +128,20 @@ pub const FluidState = struct {
             .IdealGas => |impl| {
                 const temp = equations.ideal_gas.t_from_u(impl.cv, self.sp_inenergy, impl.t0);
                 self.update_from_pt(self.press, temp);
+            },
+        }
+    }
+
+    pub fn update_base(self: *Self, gamma: f64, sp_r: f64) !f64 {
+        switch (self.medium) {
+            .CoolProp => |impl| {
+                std.log.err("Cannot update base properties of Coolprop string: [{s}]", .{impl});
+            },
+            .IdealGas => |impl| {
+                impl.gamma = gamma;
+                impl.sp_r = sp_r;
+                impl.cp = equations.ideal_gas.cp_from_base(sp_r, gamma);
+                impl.cv = equations.ideal_gas.cv_from_base(sp_r, gamma);
             },
         }
     }
@@ -180,26 +194,57 @@ test IdealGas {
     var gas = FluidState.init(try FluidLookup.from_str("NitrogenIdealGas"), press, temp);
 
     try std.testing.expect(gas.press == press);
-    try std.testing.expect(gas.press == temp);
+    try std.testing.expect(gas.temp == temp);
 
     // Functional check that everything in reversable
+    const gamma = gas.gamma;
     const density = gas.density;
+    const sp_enthalpy = gas.sp_enthalpy;
     const sp_inenergy = gas.sp_inenergy;
-    const sp_enthalpy = gas.density;
+    const sp_entropy = gas.sp_entropy;
+    const sos = gas.sos;
 
     gas.update_from_pt(press, temp);
+
     try std.testing.expectApproxEqRel(press, gas.press, 1e-7);
     try std.testing.expectApproxEqRel(temp, gas.temp, 1e-7);
+    try std.testing.expectApproxEqRel(gamma, gas.gamma, 1e-7);
+    try std.testing.expectApproxEqRel(density, gas.density, 1e-7);
+    try std.testing.expectApproxEqRel(sp_enthalpy, gas.sp_enthalpy, 1e-7);
+    try std.testing.expectApproxEqRel(sp_inenergy, gas.sp_inenergy, 1e-7);
+    try std.testing.expectApproxEqRel(sp_entropy, gas.sp_entropy, 1e-7);
+    try std.testing.expectApproxEqRel(sos, gas.sos, 1e-7);
 
     gas.update_from_du(density, sp_inenergy);
+
+    try std.testing.expectApproxEqRel(press, gas.press, 1e-7);
+    try std.testing.expectApproxEqRel(temp, gas.temp, 1e-7);
+    try std.testing.expectApproxEqRel(gamma, gas.gamma, 1e-7);
     try std.testing.expectApproxEqRel(density, gas.density, 1e-7);
-    try std.testing.expectApproxEqRel(sp_inenergy, gas.sp_inenergy, 1e-7);
+    try std.testing.expectApproxEqRel(sp_enthalpy, gas.sp_enthalpy, 1e-7);
+    try std.testing.expectApproxEqRel(sp_enthalpy, gas.sp_enthalpy, 1e-7);
+    try std.testing.expectApproxEqRel(sp_entropy, gas.sp_entropy, 1e-7);
+    try std.testing.expectApproxEqRel(sos, gas.sos, 1e-7);
 
     gas.update_from_ph(press, sp_enthalpy);
+
     try std.testing.expectApproxEqRel(press, gas.press, 1e-7);
+    try std.testing.expectApproxEqRel(temp, gas.temp, 1e-7);
+    try std.testing.expectApproxEqRel(gamma, gas.gamma, 1e-7);
+    try std.testing.expectApproxEqRel(density, gas.density, 1e-7);
     try std.testing.expectApproxEqRel(sp_enthalpy, gas.sp_enthalpy, 1e-7);
+    try std.testing.expectApproxEqRel(sp_inenergy, gas.sp_inenergy, 1e-7);
+    try std.testing.expectApproxEqRel(sp_entropy, gas.sp_entropy, 1e-7);
+    try std.testing.expectApproxEqRel(sos, gas.sos, 1e-7);
 
     gas.update_from_pu(press, sp_inenergy);
+
+    try std.testing.expectApproxEqRel(press, gas.press, 1e-7);
+    try std.testing.expectApproxEqRel(temp, gas.temp, 1e-7);
+    try std.testing.expectApproxEqRel(gamma, gas.gamma, 1e-7);
     try std.testing.expectApproxEqRel(density, gas.density, 1e-7);
+    try std.testing.expectApproxEqRel(sp_enthalpy, gas.sp_enthalpy, 1e-7);
     try std.testing.expectApproxEqRel(sp_inenergy, gas.sp_inenergy, 1e-7);
+    try std.testing.expectApproxEqRel(sp_entropy, gas.sp_entropy, 1e-7);
+    try std.testing.expectApproxEqRel(sos, gas.sos, 1e-7);
 }
