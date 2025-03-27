@@ -16,6 +16,9 @@ pub const FluidLookup = union(enum) {
     pub fn from_str(lookup_str: []const u8) !Self {
         if (std.mem.eql(u8, lookup_str, "NitrogenIdealGas")) {
             return NitrogenIdealGas;
+        }
+        if (std.mem.eql(u8, lookup_str, "OxMethane")){
+            return FluidLookup{.IdealGas = IdealGas.init_cealookup(ox_methane_cea)};
         } else {
             return FluidLookup{ .CoolProp = lookup_str };
         }
@@ -34,12 +37,12 @@ pub const FluidState = struct {
     medium: FluidLookup,
     press: f64,
     temp: f64,
-    gamma: f64 = 0.0,
-    density: f64 = 0.0,
-    sp_enthalpy: f64 = 0.0,
-    sp_inenergy: f64 = 0.0,
-    sp_entropy: f64 = 0.0,
-    sos: f64 = 0.0,
+    gamma: f64 = std.math.nan(f64),
+    density: f64 = std.math.nan(f64),
+    sp_enthalpy: f64 = std.math.nan(f64),
+    sp_inenergy: f64 = std.math.nan(f64),
+    sp_entropy: f64 = std.math.nan(f64),
+    sos: f64 = std.math.nan(f64),
 
     pub fn init(medium: FluidLookup, press: f64, temp: f64) Self {
         var new = FluidState{ .medium = medium, .press = press, .temp = temp };
@@ -132,17 +135,12 @@ pub const FluidState = struct {
         }
     }
 
-    pub fn update_base(self: *Self, gamma: f64, sp_r: f64) !f64 {
+    pub fn update_cea(self: *Self, pc: f64, mr: f64) !void{
         switch (self.medium) {
             .CoolProp => |impl| {
                 std.log.err("Cannot update base properties of Coolprop string: [{s}]", .{impl});
             },
-            .IdealGas => |impl| {
-                impl.gamma = gamma;
-                impl.sp_r = sp_r;
-                impl.cp = equations.ideal_gas.cp_from_base(sp_r, gamma);
-                impl.cv = equations.ideal_gas.cv_from_base(sp_r, gamma);
-            },
+            .IdealGas => |impl| try self.update_from_pt(pc, impl.update_cea_temp(pc, mr))
         }
     }
 
@@ -174,6 +172,8 @@ pub const IdealGas = struct {
     p0: f64,
     t0: f64,
 
+    cealookup: ?CeaLookup = null,
+
     pub fn init(gamma: f64, sp_r: f64) Self {
         return IdealGas{
             //
@@ -184,6 +184,103 @@ pub const IdealGas = struct {
             .p0 = p0,
             .t0 = t0,
         };
+    }
+
+    pub fn init_cealookup(cealookup: CeaLookup) Self{
+
+        const gamma = cealookup.gamma_map[0];
+        const sp_r = cealookup.sp_r_map[0];
+
+        return IdealGas{
+            .gamma = gamma,
+            .sp_r = sp_r,
+            .cp = equations.ideal_gas.cp_from_base(sp_r, gamma),
+            .cv =  equations.ideal_gas.cv_from_base(sp_r, gamma),
+            .p0 = p0,
+            .t0 = t0,
+            .cealookup = cealookup
+        };
+    }
+
+
+    pub fn update_cea_temp(self: *Self, pc: f64, mr: f64) !f64 {
+
+        if (self.cealookup == null){
+            std.log.err("No Cea Lokup Exists for [{any}]", .{self});
+            return error.InvalidCeaLookup;
+        }
+        
+        errdefer std.log.err("Invalid MR Lookup between [{d}] and [{d}] got [{d}]", .{self.mr_range[0], self.mr_range[self.mr_range.len - 1], mr});
+        const high_mr_idx = std.sort.binarySearch(f16, self.mr_range[0..], .{mr}, std.math.Order.gt) orelse return error.InvalidMR;
+        const low_mr_idx = std.sort.binarySearch(f16, self.mr_range[0..], .{mr}, std.math.Order.lt) orelse return error.InvalidMR;
+        const high_mr = self.mr_range[high_mr_idx];
+        const low_mr = self.mr_range[low_mr_idx];
+
+        errdefer std.log.err("Invalid Pc Lookup between [{d}] and [{d}] got [{d}]", .{self.pc_range[0], self.pc_range[self.pc_range.len - 1], pc});
+        const high_pc_idx = std.sort.binarySearch(f16, self.pc_range[0..], .{pc}, std.math.Order.gt) orelse return error.InvalidPc;
+        const low_pc_idx = std.sort.binarySearch(f16, self.pc_range[0..], .{pc}, std.math.Order.lt) orelse return error.InvalidPc;
+        const high_pc = self.pc_range[high_pc_idx];
+        const low_pc = self.pc_range[low_pc_idx];
+
+        const hh_gamma = self.cealookup.?.lookup_2d(high_mr, high_pc, self.gamma_map[0..]);
+        const hl_gamma = self.cealookup.?.lookup_2d(high_mr, low_pc, self.gamma_map[0..]);
+        const lh_gamma = self.cealookup.?.lookup_2d(low_mr, high_pc, self.gamma_map[0..]);
+        const ll_gamma = self.cealookup.?.lookup_2d(low_mr, low_pc, self.gamma_map[0..]);
+
+        const hh_sp_r = self.cealookup.?.lookup_2d(high_mr, high_pc, self.sp_r_map[0..]);
+        const hl_sp_r = self.cealookup.?.lookup_2d(high_mr, low_pc, self.sp_r_map[0..]);
+        const lh_sp_r = self.cealookup.?.lookup_2d(low_mr, high_pc, self.sp_r_map[0..]);
+        const ll_sp_r = self.cealookup.?.lookup_2d(low_mr, low_pc, self.sp_r_map[0..]);
+
+        const hh_temp = self.cealookup.?.lookup_2d(high_mr, high_pc, self.temp_map[0..]);
+        const hl_temp = self.cealookup.?.lookup_2d(high_mr, low_pc, self.temp_map[0..]);
+        const lh_temp = self.cealookup.?.lookup_2d(low_mr, high_pc, self.temp_map[0..]);
+        const ll_temp = self.cealookup.?.lookup_2d(low_mr, low_pc, self.temp_map[0..]);
+
+
+        self.gamma = sim.math.multilinear_poly(
+            f16, 
+            mr, 
+            pc, 
+            low_mr,
+            high_mr,
+            low_pc,
+            high_pc,
+            ll_gamma,
+            lh_gamma,
+            hl_gamma,
+            hh_gamma,
+        );
+        self.sp_r = sim.math.multilinear_poly(
+            f16, 
+            mr, 
+            pc, 
+            low_mr,
+            high_mr,
+            low_pc,
+            high_pc,
+            ll_sp_r,
+            lh_sp_r,
+            hl_sp_r,
+            hh_sp_r,
+        );
+
+        self.cp = equations.ideal_gas.cp_from_base(self.sp_r, self.gamma);
+        self.cv = equations.ideal_gas.cv_from_base(self.sp_r, self.gamma);
+
+        return sim.math.multilinear_poly(
+            f16, 
+            mr, 
+            pc, 
+            low_mr,
+            high_mr,
+            low_pc,
+            high_pc,
+            ll_temp,
+            lh_temp,
+            hl_temp,
+            hh_temp,
+        );
     }
 };
 
@@ -248,3 +345,30 @@ test IdealGas {
     try std.testing.expectApproxEqRel(sp_entropy, gas.sp_entropy, 1e-7);
     try std.testing.expectApproxEqRel(sos, gas.sos, 1e-7);
 }
+
+// CEA methods
+
+pub const CeaLookup = struct {
+    const Self = @This();
+    const MR_SIZE: usize = 50;
+    const PC_SIZE: usize = 100;
+
+    mr_range: [MR_SIZE]f32,
+    pc_range: [PC_SIZE]f32,
+    gamma_map: [MR_SIZE * PC_SIZE]f32,
+    sp_r_map: [MR_SIZE * PC_SIZE]f32,
+    temp_map: [MR_SIZE * PC_SIZE]f32,
+    
+    pub fn lookup_2d(_: Self, mr_idx: usize, pc_idx: usize, map: []f16) f16{
+        return map[PC_SIZE * pc_idx + mr_idx];
+    }
+};
+
+const ox_methane_map = @import("maps/oxygen_methane.zig");
+const ox_methane_cea = CeaLookup{
+    .mr_range = ox_methane_map.MR,
+    .pc_range = ox_methane_map.PC,
+    .gamma_map = ox_methane_map.GAMMA_MAP,
+    .sp_r_map = ox_methane_map.SP_R_MAP,
+    .temp_map = ox_methane_map.TEMP_MAP,
+};

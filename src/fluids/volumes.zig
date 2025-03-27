@@ -3,12 +3,15 @@ const sim = @import("../sim.zig");
 const MAX_STATE_LEN = sim.interfaces.MAX_STATE_LEN;
 const MAX_RESIDUALS = sim.interfaces.MAX_RESIDUALS;
 
+pub const UpwindedCombuster = @import("combuster.zig").UpwindedCombuster;
+
 pub const Volume = union(enum) {
     const Self = @This();
 
     VoidVolume: *VoidVolume,
     StaticVolume: *StaticVolume,
     UpwindedSteadyVolume: *UpwindedSteadyVolume,
+    UpwindedCombuster: *UpwindedCombuster,
 
     pub fn get_intrinsic(self: *const Self) sim.intrinsic.FluidState {
         switch (self.*) {
