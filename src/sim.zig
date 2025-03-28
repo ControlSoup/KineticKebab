@@ -26,6 +26,7 @@ pub const SimObject = union(enum) {
     VoidVolume: *volumes.VoidVolume,
     StaticVolume: *volumes.StaticVolume,
     UpwindedSteadyVolume: *volumes.UpwindedSteadyVolume,
+    UpwindedCombuster: *volumes.UpwindedCombuster,
 
     // 1DOF
     SimpleForce: *forces.d1.Simple,

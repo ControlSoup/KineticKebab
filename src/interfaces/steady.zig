@@ -5,6 +5,7 @@ pub const Steadyable = union(enum) {
     const Self = @This();
 
     UpwindedSteadyVolume: *sim.volumes.UpwindedSteadyVolume,
+    Combuster: *sim.volumes.UpwindedCombuster,
 
     pub fn name(self: *const Self) []const u8 {
         return switch (self.*) {
