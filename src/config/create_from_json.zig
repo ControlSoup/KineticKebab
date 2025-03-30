@@ -13,6 +13,8 @@ pub const errors = error{
 };
 
 pub const ConnectionType = enum {
+    FuIn,
+    OxIn,
     In,
     Out,
 };
@@ -128,6 +130,22 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
                 try all_connections.append(Connection.new(connection, new_sim_ptr.sim_objs.getLast().name(), .In));
             }
         }
+        if (contents.object.get("connections_ox_in")) |connection_json| {
+            const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
+                return errors.JsonConnectionListParseError;
+            };
+            for (connections.value) |connection| {
+                try all_connections.append(Connection.new(connection, new_sim_ptr.sim_objs.getLast().name(), .OxIn));
+            }
+        }
+        if (contents.object.get("connections_fu_in")) |connection_json| {
+            const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
+                return errors.JsonConnectionListParseError;
+            };
+            for (connections.value) |connection| {
+                try all_connections.append(Connection.new(connection, new_sim_ptr.sim_objs.getLast().name(), .FuIn));
+            }
+        }
         if (contents.object.get("connections_out")) |connection_json| {
             const connections = std.json.parseFromValue([][]const u8, allocator, connection_json, .{}) catch {
                 return errors.JsonConnectionListParseError;
@@ -151,23 +169,29 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
         // Most objects go from plug -> socket
         try switch (socket) {
             .StaticVolume => |impl| switch (connection_type) {
-                .In => try impl.as_volume().add_connection_in(plug),
-                .Out => try impl.as_volume().add_connection_out(plug),
+                .In => try impl.as_volume().add_connection_in(try plug.as_restriction()),
+                .Out => try impl.as_volume().add_connection_out(try plug.as_restriction()),
+                inline else => connection_error(plug.name(), socket.name(), connection_type)
             },
             .UpwindedSteadyVolume => |impl| switch (connection_type) {
-                .In => try impl.as_volume().add_connection_in(plug),
-                .Out => try impl.as_volume().add_connection_out(plug),
+                .In => try impl.as_volume().add_connection_in(try plug.as_restriction()),
+                .Out => try impl.as_volume().add_connection_out(try plug.as_restriction()),
+                inline else => connection_error(plug.name(), socket.name(), connection_type)
+            },
+            .UpwindedCombuster => |impl| switch (connection_type){
+                .Out => try impl.as_volume().add_connection_out(try plug.as_restriction()),
+                .OxIn => try impl.add_ox_connection_in(try plug.as_restriction()),
+                .FuIn => try impl.add_fu_connection_in(try plug.as_restriction()),
+                inline else => connection_error(plug.name(), socket.name(), connection_type)
             },
             .VoidVolume => |v| switch (connection_type) {
-                .In => try v.as_volume().add_connection_in(plug),
-                .Out => try v.as_volume().add_connection_out(plug),
+                .In => try v.as_volume().add_connection_in(try plug.as_restriction()),
+                .Out => try v.as_volume().add_connection_out(try plug.as_restriction()),
+                inline else => connection_error(plug.name(), socket.name(), connection_type)
             },
             .Motion => |impl| impl.add_connection(plug),
             .Motion3DOF => |impl| impl.add_connection(plug),
-            inline else => {
-                std.log.err("Failed to connect [{s}] to [{s}]", .{ plug.name(), socket.name() });
-                return errors.JsonFailedConnection;
-            },
+            inline else => connection_error(plug.name(), socket.name(), connection_type)
         };
     }
 
@@ -175,6 +199,11 @@ pub fn json_sim(allocator: std.mem.Allocator, json_string: []const u8) !*sim.Sim
 
     // Give the world the sim
     return new_sim_ptr;
+}
+
+pub fn connection_error(plug_name: []const u8, socket_name: []const u8, connection_type: ConnectionType) !void{
+    std.log.err("Failed to connect [{s}] to [{s}] with connectin_type [{s}]", .{plug_name, socket_name, @tagName(connection_type)});
+    return errors.JsonFailedConnection;
 }
 
 pub fn group_exists(parsed: json.Parsed(json.Value), key: []const u8) !json.Value {

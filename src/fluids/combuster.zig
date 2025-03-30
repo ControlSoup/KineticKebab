@@ -12,7 +12,6 @@ pub const UpwindedCombuster = struct {
         "mdot_out [kg/s]",
         "net_mdot [kg/s]",
         "gamma [-]",
-        "sp_r [-]",
         "press [Pa]",
         "temp [degK]",
     };
@@ -32,6 +31,14 @@ pub const UpwindedCombuster = struct {
     connections_fu_in: std.ArrayList(sim.restrictions.Restriction),
     connections_out: std.ArrayList(sim.restrictions.Restriction),
 
+    // Steady fields
+    maxs: [1]f64,
+    mins: [1]f64,
+    max_steps: [1]f64,
+    min_steps: [1]f64,
+    tols: [1]f64,
+    residuals: [1]f64 = [1]f64{std.math.nan(f64)},
+
     pub fn init(
         allocator: std.mem.Allocator,
         name: []const u8,
@@ -43,7 +50,7 @@ pub const UpwindedCombuster = struct {
         min_press: f64,
         min_press_step: f64,
         mdot_tol: f64,
-    ) Self {
+    ) !Self {
         if (press < 0.0) {
             std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{ name, press, 0.0 });
             return sim.errors.InvalidInput;
@@ -81,7 +88,14 @@ pub const UpwindedCombuster = struct {
         return Self{
             .name = name,
             .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp),
-            
+            .connections_ox_in = std.ArrayList(sim.restrictions.Restriction).init(allocator),
+            .connections_fu_in = std.ArrayList(sim.restrictions.Restriction).init(allocator),
+            .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator),
+            .maxs = [1]f64{max_press},
+            .mins = [1]f64{min_press},
+            .max_steps = [1]f64{max_press_step},
+            .min_steps = [1]f64{min_press_step},
+            .tols = [1]f64{mdot_tol},
         };
     }
 
@@ -132,20 +146,30 @@ pub const UpwindedCombuster = struct {
         );
     }
 
+    pub fn add_ox_connection_in(self: *Self, restriction: sim.restrictions.Restriction) !void{
+        try self.connections_ox_in.append(restriction);
+        try restriction.add_connection_out(self.as_volume());
+    }
+
+    pub fn add_fu_connection_in(self: *Self, restriction: sim.restrictions.Restriction) !void{
+        try self.connections_fu_in.append(restriction);
+        try restriction.add_connection_out(self.as_volume());
+    }
+
     // =========================================================================
     //  Interfaces
     // =========================================================================
 
     pub fn as_sim_object(self: *Self) sim.SimObject {
-        return sim.SimObject{ .ConstantMdot = self };
+        return sim.SimObject{ .UpwindedCombuster = self };
     }
 
     pub fn as_volume(self: *Self) sim.volumes.Volume {
-        return sim.volumes.Volume{ .Combuster = self };
+        return sim.volumes.Volume{ .UpwindedCombuster = self };
     }
 
     pub fn as_steadyable(self: *Self) sim.interfaces.Steadyable {
-        return sim.interfaces.Steadyable{ .Combuster = self };
+        return sim.interfaces.Steadyable{ .UpwindedCombuster = self };
     }
 
     // =========================================================================
@@ -158,22 +182,20 @@ pub const UpwindedCombuster = struct {
         save_array[2] = self.fu_mdot_in;
         save_array[3] = self.combustion_mdot_out;
         save_array[4] = self.net_mdot;
-        save_array[5] = self.gamma;
-        save_array[6] = self.sp_r;
-        save_array[7] = self.intrinsic.press;
-        save_array[8] = self.intrinsic.temp;
+        save_array[5] = self.intrinsic.gamma;
+        save_array[6] = self.intrinsic.press;
+        save_array[7] = self.intrinsic.temp;
     }
 
-    pub fn set_vals(self: *const Self, save_array: []f64) void {
+    pub fn set_vals(self: *Self, save_array: []f64) void {
         self.mr = save_array[0];
         self.ox_mdot_in = save_array[1];
         self.fu_mdot_in = save_array[2];
         self.combustion_mdot_out = save_array[3];
         self.net_mdot = save_array[4];
-        self.gamma = save_array[5];
-        self.sp_r = save_array[6];
-        self.intrinsic.press = save_array[7];
-        self.intrinsic.temp = save_array[8];
+        self.intrinsic.gamma = save_array[5];
+        self.intrinsic.press = save_array[6];
+        self.intrinsic.temp = save_array[7];
     }
 
     // =========================================================================
@@ -183,9 +205,9 @@ pub const UpwindedCombuster = struct {
     pub fn get_residuals(self: *Self, guesses: []f64) ![]f64 {
         self.intrinsic.press = guesses[0];
 
-        self.hdot_in = 0.0;
-        self.mdot_in = 0.0;
-        self.mdot_out = 0.0;
+        self.ox_mdot_in = 0.0;
+        self.fu_mdot_in = 0.0;
+        self.combustion_mdot_out = 0.0;
 
         for (self.connections_ox_in.items) |ox| {
             const mhdot = try ox.get_mhdot();
@@ -197,10 +219,12 @@ pub const UpwindedCombuster = struct {
             if (mhdot[0] >= 0.0) self.fu_mdot_in += mhdot[0];
         }
 
-        for (self.combustion_mdot_out) |combust| {
+        for (self.connections_out.items) |combust| {
             const mhdot = try combust.get_mhdot();
             if (mhdot[0] >= 0.0) self.combustion_mdot_out += mhdot[0];
         }
+
+        std.log.err("Ox: [{d}], Fu: [{d}], Combustion: [{d}]", .{self.ox_mdot_in, self.fu_mdot_in, self.combustion_mdot_out});
 
         // Continuity Equation (ingoring head and velocity)
         self.net_mdot = self.ox_mdot_in + self.fu_mdot_in - self.combustion_mdot_out;
@@ -209,8 +233,10 @@ pub const UpwindedCombuster = struct {
 
 
         // Update base props and lookup new properties from new temp
+        std.log.err("P: {d}, T: {d}, MR: {d}", .{self.intrinsic.press, self.intrinsic.temp, self.mr});
         try self.intrinsic.update_cea(self.intrinsic.press, self.mr);
-        self.intrinsic.update_from_pt(self.intrinsic.press, self.intrinsic.temp);
+        std.log.err("AFTER__ P: {d}, T: {d}, MR: {d}", .{self.intrinsic.press, self.intrinsic.temp, self.mr});
+        
 
         // Update resisduals and return them as a slice for the jacobian
         self.residuals[0] = self.net_mdot;

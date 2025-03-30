@@ -19,20 +19,24 @@ pub const Volume = union(enum) {
         }
     }
 
-    pub fn add_connection_in(self: *const Self, sim_obj: sim.SimObject) !void {
+    pub fn add_connection_in(self: *const Self, restriction: sim.restrictions.Restriction) !void {
         switch (self.*) {
+            .UpwindedCombuster => {
+                std.log.err("No implemetnation of connection_in for Upwinded Combuster: [{s}]", .{self.UpwindedCombuster.name});
+                return error.NoMethod;
+            },
             inline else => |impl| {
-                try impl.connections_in.append(try sim_obj.as_restriction());
-                try (try sim_obj.as_restriction()).add_connection_out(impl.*.as_volume());
+                try impl.connections_in.append(restriction);
+                try restriction.add_connection_out(impl.*.as_volume());
             },
         }
     }
 
-    pub fn add_connection_out(self: *const Self, sim_obj: sim.SimObject) !void {
+    pub fn add_connection_out(self: *const Self, restriction: sim.restrictions.Restriction) !void {
         switch (self.*) {
             inline else => |impl| {
-                try impl.connections_out.append(try sim_obj.as_restriction());
-                try (try sim_obj.as_restriction()).add_connection_in(impl.*.as_volume());
+                try impl.connections_out.append(restriction);
+                try restriction.add_connection_in(impl.*.as_volume());
             },
         }
     }
