@@ -54,6 +54,12 @@ pub const Steadyable = union(enum) {
             inline else => |impl| impl.tols[0..],
         };
     }
+
+    pub fn get_perturb_deltas(self: *const Self) []f64{
+        return switch (self.*) {
+            inline else => |impl| impl.perturb_deltas[0..],
+        };
+    }
 };
 
 pub const SteadySolver = struct {
@@ -165,12 +171,9 @@ pub const SteadySolver = struct {
             const tols = obj.get_tols();
             const obj_guess = self.guesses_unfolded.items[pos_tracker .. pos_tracker + tols.len];
 
-            for (obj_guess, 0..) |curr_guess, g_idx| {
-                var perturb = curr_guess * 1.005;
-                if (curr_guess == 0) perturb = 1e-6;
-
+            for (obj_guess, obj.get_perturb_deltas(), 0..) |curr_guess, perturb_delta, g_idx| {
+                const perturb = curr_guess + perturb_delta;
                 const interval = curr_guess - perturb;
-
                 const temp = obj_guess[g_idx];
                 obj_guess[g_idx] = perturb;
 

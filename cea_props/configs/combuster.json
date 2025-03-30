@@ -1,0 +1,64 @@
+{
+  "SimOptions": {
+    "dt": 1e-3,
+    "integration_method": "Rk4" ,
+    "max_iter": 1000
+  },
+  "SimObjects": [
+    {
+        "object": "VoidVolume",
+        "name": "UpstreamOx",
+        "press": 5e6,
+        "temp": 95,
+        "fluid": "oxygen",
+        "connections_out": ["OxMdot"]
+    },
+    {
+        "object": "ConstantMdot",
+        "name": "OxMdot",
+        "mdot": 1.0
+    },
+    {
+        "object": "VoidVolume",
+        "name": "UpstreamFuel",
+        "press": 5e6,
+        "temp": 95,
+        "fluid": "methane",
+        "connections_out": ["FuelMdot"]
+    },
+    {
+        "object": "ConstantMdot",
+        "name": "FuelMdot",
+        "mdot": 1.0
+    },
+    {
+        "object": "UpwindedCombuster",
+        "name": "Combusty",
+        "press": 2.7e6,
+        "temp": 900,
+        "fluid": "OxMethane",
+        "mdot_tol": 1e-5,
+        "connections_ox_in": ["OxMdot"],
+        "connections_fu_in": ["FuelMdot"],
+        "connections_out": ["Dump"]
+    },
+    {
+        "object": "Orifice",
+        "name": "Dump",
+        "cda": 0.001,
+        "mdot_method": "IdealIsentropic"
+    },
+    {
+        "object": "VoidVolume",
+        "name": "Downstream",
+        "press": 1e6,
+        "temp": 300.0,
+        "fluid": "air",
+        "connections_in": ["Dump"]
+    }
+  ],
+  "RecorderOptions": {
+    "path": "../data/1dof-0001",
+    "min_dt": 0.01
+  }
+}

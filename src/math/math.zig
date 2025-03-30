@@ -85,17 +85,5 @@ pub fn multilinear_poly(
     const w21 = (x - x1) * (y2 - y) / ((x2 - x1) * (y2 - y1));
     const w22 = (x - x1) * (y - y1) / ((x2 - x1) * (y2 - y1));
 
-    std.log.err("x {d}", .{x}); 
-    std.log.err("y {d}", .{y});
-    std.log.err("x1 {d}", .{x1});
-    std.log.err("x2 {d}", .{x2});
-    std.log.err("y1 {d}", .{y1});
-    std.log.err("y2 {d}", .{y2});
-    std.log.err("f11 {d}", .{f11});
-    std.log.err("f12 {d}", .{f12});
-    std.log.err("f21 {d}", .{f21});
-    std.log.err("f22 {d}", .{f22});
-
-
     return f11 * w11 + f12 * w12 + f21 * w21 + f22 * w22;
 }

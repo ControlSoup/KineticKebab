@@ -220,16 +220,11 @@ pub const IdealGas = struct {
         const low_mr_idx = try sim.math.index_leql(f32, self.cealookup.?.mr_range[0..], mr_f32);
         const high_mr = self.cealookup.?.mr_range[high_mr_idx];
         const low_mr = self.cealookup.?.mr_range[low_mr_idx];
-        std.log.err("HIGH MR IDX: {d}, Val: {d}", .{high_mr_idx, high_mr});
-        std.log.err("LOW MR IDX: {d}, Val: {d}", .{low_mr_idx, low_mr});
-
 
         const high_pc_idx = try sim.math.index_geql(f32, self.cealookup.?.pc_range[0..], pc_f32);
         const low_pc_idx = try sim.math.index_leql(f32, self.cealookup.?.pc_range[0..], pc_f32);
         const high_pc = self.cealookup.?.pc_range[high_pc_idx];
         const low_pc = self.cealookup.?.pc_range[low_pc_idx];
-        std.log.err("HIGH PC IDX: {d}, Val: {d}", .{high_pc_idx, high_pc});
-        std.log.err("LOW PC IDX: {d}, Val: {d}", .{low_pc_idx, low_pc});
 
         const ll_gamma = self.cealookup.?.lookup_2d(low_mr_idx, low_pc_idx, self.cealookup.?.gamma_map[0..]);
         const lh_gamma = self.cealookup.?.lookup_2d(low_mr_idx, high_pc_idx, self.cealookup.?.gamma_map[0..]);
@@ -245,19 +240,6 @@ pub const IdealGas = struct {
         const hl_temp = self.cealookup.?.lookup_2d(high_mr_idx, low_pc_idx, self.cealookup.?.temp_map[0..]);
         const lh_temp = self.cealookup.?.lookup_2d(low_mr_idx, high_pc_idx, self.cealookup.?.temp_map[0..]);
         const hh_temp = self.cealookup.?.lookup_2d(high_mr_idx, high_pc_idx, self.cealookup.?.temp_map[0..]);
-
-        std.log.err("HH_GAMMA: {d}", .{hh_gamma});
-        std.log.err("HL_GAMMA: {d}", .{hl_gamma});
-        std.log.err("LH_GAMMA: {d}", .{lh_gamma});
-        std.log.err("LL_GAMMA: {d}", .{ll_gamma});
-        std.log.err("HH_SP_R: {d}", .{hh_sp_r});
-        std.log.err("HL_SP_R: {d}", .{hl_sp_r});
-        std.log.err("LH_SP_R: {d}", .{lh_sp_r});
-        std.log.err("LL_SP_R: {d}", .{ll_sp_r});
-        std.log.err("HH_TEMP: {d}", .{hh_temp});
-        std.log.err("HL_TEMP: {d}", .{hl_temp});
-        std.log.err("LH_TEMP: {d}", .{lh_temp});
-        std.log.err("LL_TEMP: {d}", .{ll_temp});
 
         self.gamma = sim.math.multilinear_poly(
             f32, 
@@ -303,8 +285,6 @@ pub const IdealGas = struct {
             hl_temp,
             hh_temp,
         );
-
-        std.log.err("GAMMA: {d}, SP_R: {d}, TEMP: {d}", .{self.gamma, self.sp_r, temp});
 
         return temp;
     }

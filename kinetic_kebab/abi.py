@@ -156,7 +156,8 @@ class KineticKebab:
         return c_iter_steady(self.__sim_ptr)
 
     def solve_steady(self) -> None:
-        return c_solve_steady(self.__sim_ptr)
+        c_solve_steady(self.__sim_ptr)
+        self._save()
 
     def debug_steady(self, itterations: int, print_jacobian: bool):
         for _ in range(int(itterations)):

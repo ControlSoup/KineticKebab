@@ -51,13 +51,14 @@ def python_to_zig_str(array: np.array, type: str):
     
     return _str + '};'
 
+combos = [
+    ('oxygen', 'methane', (0.05, 6), (68947.6, 6.8948e+7)),
+]
+
 if __name__ == '__main__':
-    combos = [
-        ('oxygen', 'methane', (0.05, 6), (68947.6, 6.8948e+7)),
-    ]
 
     pc_count = 500
-    mr_count = 100
+    mr_count = 50 
     zig_type = 'f32'
 
     for ox, fuel, (mr_start, mr_end), (p_start, p_end) in combos:

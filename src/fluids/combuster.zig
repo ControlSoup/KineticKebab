@@ -37,6 +37,7 @@ pub const UpwindedCombuster = struct {
     max_steps: [1]f64,
     min_steps: [1]f64,
     tols: [1]f64,
+    perturb_deltas: [1]f64,
     residuals: [1]f64 = [1]f64{std.math.nan(f64)},
 
     pub fn init(
@@ -50,6 +51,7 @@ pub const UpwindedCombuster = struct {
         min_press: f64,
         min_press_step: f64,
         mdot_tol: f64,
+        press_perturb_delta: f64
     ) !Self {
         if (press < 0.0) {
             std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{ name, press, 0.0 });
@@ -85,6 +87,11 @@ pub const UpwindedCombuster = struct {
             std.log.err("Obect [{s}] mdot tolerance[{d}] is less [{d}]", .{ name, mdot_tol, 0.0 });
             return sim.errors.InvalidInput;
         }
+
+        if (press_perturb_delta == 0.0) {
+            std.log.err("Obect [{s}] press_perturb_delta needs to be non-zero got [{d}]", .{ name, press_perturb_delta});
+            return sim.errors.InvalidInput;
+        }
         return Self{
             .name = name,
             .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp),
@@ -96,6 +103,7 @@ pub const UpwindedCombuster = struct {
             .max_steps = [1]f64{max_press_step},
             .min_steps = [1]f64{min_press_step},
             .tols = [1]f64{mdot_tol},
+            .perturb_deltas = [1]f64{press_perturb_delta},
         };
     }
 
@@ -110,6 +118,7 @@ pub const UpwindedCombuster = struct {
         min_press: f64,
         min_press_step: f64,
         mdot_tol: f64,
+        press_perturb_delta: f64,
     ) !*Self {
         const ptr = try allocator.create(Self);
         ptr.* = try init(
@@ -123,6 +132,7 @@ pub const UpwindedCombuster = struct {
             min_press,
             min_press_step,
             mdot_tol,
+            press_perturb_delta
         );
         return ptr;
     }
@@ -136,13 +146,14 @@ pub const UpwindedCombuster = struct {
             try sim.intrinsic.FluidLookup.from_str(try sim.parse.string_field(allocator, Self, "fluid", contents)),
 
             // 20ksi is unlikley lol (at least in my personal life)
-            try sim.parse.optional_field(allocator, f64, Self, "max_press", contents) orelse 1.37895e+8,
+            try sim.parse.optional_field(allocator, f64, Self, "max_press", contents) orelse 6.8948e+7,
             try sim.parse.optional_field(allocator, f64, Self, "max_press_step", contents) orelse 689476,
 
             try sim.parse.optional_field(allocator, f64, Self, "min_press", contents) orelse 0.1,
             try sim.parse.optional_field(allocator, f64, Self, "min_press_step", contents) orelse 1e-8,
 
             try sim.parse.optional_field(allocator, f64, Self, "mdot_tol", contents) orelse 1e-6,
+            try sim.parse.optional_field(allocator, f64, Self, "press_perturb_delta", contents) orelse 1,
         );
     }
 
@@ -224,19 +235,13 @@ pub const UpwindedCombuster = struct {
             if (mhdot[0] >= 0.0) self.combustion_mdot_out += mhdot[0];
         }
 
-        std.log.err("Ox: [{d}], Fu: [{d}], Combustion: [{d}]", .{self.ox_mdot_in, self.fu_mdot_in, self.combustion_mdot_out});
-
         // Continuity Equation (ingoring head and velocity)
         self.net_mdot = self.ox_mdot_in + self.fu_mdot_in - self.combustion_mdot_out;
 
         self.mr = self.ox_mdot_in / self.fu_mdot_in;
 
-
         // Update base props and lookup new properties from new temp
-        std.log.err("P: {d}, T: {d}, MR: {d}", .{self.intrinsic.press, self.intrinsic.temp, self.mr});
         try self.intrinsic.update_cea(self.intrinsic.press, self.mr);
-        std.log.err("AFTER__ P: {d}, T: {d}, MR: {d}", .{self.intrinsic.press, self.intrinsic.temp, self.mr});
-        
 
         // Update resisduals and return them as a slice for the jacobian
         self.residuals[0] = self.net_mdot;

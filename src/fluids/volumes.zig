@@ -323,6 +323,7 @@ pub const UpwindedSteadyVolume = struct {
     max_steps: [1]f64,
     min_steps: [1]f64,
     tols: [1]f64,
+    perturb_deltas: [1]f64,
     residuals: [1]f64 = [1]f64{std.math.nan(f64)},
 
     pub fn init(
@@ -336,6 +337,7 @@ pub const UpwindedSteadyVolume = struct {
         min_press: f64,
         min_press_step: f64,
         mdot_tol: f64,
+        press_perturb_delta: f64
     ) !Self {
         if (press < 0.0) {
             std.log.err("Obect [{s}] press [{d}] is less minimum pressure [{d}]", .{ name, press, 0.0 });
@@ -372,7 +374,24 @@ pub const UpwindedSteadyVolume = struct {
             return sim.errors.InvalidInput;
         }
 
-        return Self{ .name = name, .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp), .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator), .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator), .maxs = [1]f64{max_press}, .mins = [1]f64{min_press}, .max_steps = [1]f64{max_press_step}, .min_steps = [1]f64{min_press_step}, .tols = [1]f64{mdot_tol} };
+        if(press_perturb_delta == 0.0){
+            std.log.err("Obect [{s}] press_perturb_delta must be non zero got [{}]", .{name, press_perturb_delta});
+            return sim.errors.InvalidInput;
+
+        }
+
+        return Self{ //
+            .name = name, 
+            .intrinsic = sim.intrinsic.FluidState.init(fluid, press, temp), 
+            .connections_in = std.ArrayList(sim.restrictions.Restriction).init(allocator), 
+            .connections_out = std.ArrayList(sim.restrictions.Restriction).init(allocator), 
+            .maxs = [1]f64{max_press}, 
+            .mins = [1]f64{min_press}, 
+            .max_steps = [1]f64{max_press_step}, 
+            .min_steps = [1]f64{min_press_step}, 
+            .tols = [1]f64{mdot_tol},
+            .perturb_deltas = [1]f64{press_perturb_delta}, 
+        };
     }
 
     pub fn create(
@@ -386,6 +405,7 @@ pub const UpwindedSteadyVolume = struct {
         min_press: f64,
         min_press_step: f64,
         mdot_tol: f64,
+        press_perturb_delta: f64
     ) !*Self {
         const ptr = try allocator.create(Self);
         ptr.* = try init(
@@ -399,6 +419,7 @@ pub const UpwindedSteadyVolume = struct {
             min_press,
             min_press_step,
             mdot_tol,
+            press_perturb_delta
         );
         return ptr;
     }
@@ -419,6 +440,7 @@ pub const UpwindedSteadyVolume = struct {
             try sim.parse.optional_field(allocator, f64, Self, "min_press_step", contents) orelse 1e-8,
 
             try sim.parse.optional_field(allocator, f64, Self, "mdot_tol", contents) orelse 1e-6,
+            try sim.parse.optional_field(allocator, f64, Self, "press_perturb_delta", contents) orelse 1,
         );
     }
 
