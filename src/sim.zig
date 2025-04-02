@@ -223,6 +223,13 @@ pub const Sim = struct {
     }
 
     pub fn step_duration(self: *Self, duration: f64) !void {
+
+        // Update user enforced states
+        if (self.updated_vals) {
+            try self._set_vals();
+            self.updated_vals = false;
+        }
+
         if (0.0 > duration) {
             std.log.err("step_duration must be > 0, got [{d}]", .{duration});
             return errors.InputLessThanZero;
@@ -243,6 +250,14 @@ pub const Sim = struct {
     }
 
     pub fn iter_steady(self: *Self) !bool {
+
+        // Update user enforced states
+        if (self.updated_vals) {
+            try self._set_vals();
+            self.updated_vals = false;
+        }
+
+
         for (self.updatables.items) |obj| try obj.update();
         const solved = try self.steady.iter();
         for (self.updatables.items) |obj| try obj.update();
@@ -252,6 +267,13 @@ pub const Sim = struct {
     }
 
     pub fn solve_steady(self: *Self) !void {
+
+        // Update user enforced states
+        if (self.updated_vals) {
+            try self._set_vals();
+            self.updated_vals = false;
+        }
+
         for (0..self.max_iter) |_| {
             for (self.updatables.items) |obj| try obj.update();
             if (try self.steady.iter()) {

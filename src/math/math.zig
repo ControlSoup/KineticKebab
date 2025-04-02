@@ -21,6 +21,14 @@ pub fn slice_norm(comptime T: type, slice: []T) T {
     return std.math.sqrt(norm);
 }
 
+pub fn slice_all_eql(comptime T: type, slice: []T, target: T) bool{
+    var eql = true;
+    for (slice) |val| {
+        if (val != target) eql = false;
+    }
+    return eql;
+}
+
 pub fn relative_err(comptime T: type, a: T, b: T) T {
     return @abs(a - b) / @max(@max(a, b), 1e-10);
 }
@@ -71,11 +79,11 @@ pub fn multilinear_poly(
         return f11;
     }
 
-    if ((x2 - x1) == 0.0){
+    if (f21 == f22){
         return std.math.lerp(y1, y2, y / y2);
     }
 
-    if ((y2 - y1) == 0.0){
+    if (f11 == f12){
         return std.math.lerp(x1, x2, x / x2);
     }
 

@@ -14,9 +14,10 @@
         "connections_out": ["OxMdot"]
     },
     {
-        "object": "ConstantMdot",
+        "object": "Orifice",
         "name": "OxMdot",
-        "mdot": 1.0
+        "cda": 0.0001,
+        "mdot_method": "IdealIsentropic"
     },
     {
         "object": "VoidVolume",
@@ -27,9 +28,10 @@
         "connections_out": ["FuelMdot"]
     },
     {
-        "object": "ConstantMdot",
+        "object": "Orifice",
         "name": "FuelMdot",
-        "mdot": 1.0
+        "cda": 0.0001,
+        "mdot_method": "IdealIsentropic"
     },
     {
         "object": "UpwindedCombuster",
@@ -45,7 +47,7 @@
     {
         "object": "Orifice",
         "name": "Dump",
-        "cda": 0.001,
+        "cda": 0.005,
         "mdot_method": "IdealIsentropic"
     },
     {

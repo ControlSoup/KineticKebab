@@ -237,8 +237,8 @@ pub const ConstantMdot = struct {
         save_array[3] = if (self.is_choked) 1.0 else 0.0;
     }
 
-    pub fn set_vals(self: *const Self, save_array: []f64) void {
-        save_array[0] = self.mdot;
+    pub fn set_vals(self: *Self, save_array: []f64) void {
+        self.mdot = save_array[0];
     }
 
     // =========================================================================

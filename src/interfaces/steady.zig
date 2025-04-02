@@ -196,6 +196,11 @@ pub const SteadySolver = struct {
             }
         }
 
+        if (sim.math.slice_all_eql(f64, self.partials.array_list.items[0..], 0.0)){
+            std.log.warn("Jacobian has all zero elements, results may be undefined", .{});
+            return true;
+        }
+
         // Solve for new guesses
         try sim.math.ArrayMatrix.gaussian(&self.partials, &self.residuals, &self.guess_delta);
 
