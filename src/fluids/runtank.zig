@@ -14,8 +14,8 @@ const RuntankUllage = struct {
         "mdot_in [kg/s]",
         "mdot_out [kg/s]",
         "net_mdot [kg/s]",
-        "hdot_in [J/(kg*s)]",
-        "hdot_out [J/(kg*s)]",
+        "hdot_in [Watt)]",
+        "hdot_out [Watt)]",
         "net_inenergy_dot [J/(kg*s)]",
     };
 
@@ -197,8 +197,8 @@ const RuntankWorkingFluid = struct {
         "mdot_in [kg/s]",
         "mdot_out [kg/s]",
         "net_mdot [kg/s]",
-        "hdot_in [J/(kg*s)]",
-        "hdot_out [J/(kg*s)]",
+        "hdot_in [Watt)]",
+        "hdot_out [Watt)]",
         "net_inenergy_dot [J/(kg*s)]",
     };
 

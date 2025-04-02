@@ -44,7 +44,15 @@ pub const Volume = union(enum) {
 
 pub const VoidVolume = struct {
     const Self = @This();
-    pub const header = [_][]const u8{ "press [Pa]", "temp [degK]", "sp_enthalpy [J/kg]" };
+    pub const header = [_][]const u8{ 
+        //
+        "press [Pa]", 
+        "temp [degK]", 
+        "sp_enthalpy [J/kg]", 
+        "density [kg/m^3]", 
+        "sp_inenergy [J/kg]", 
+        "sp_entropy [J/(kg*degK)]", 
+    };
 
     name: []const u8,
     intrinsic: sim.intrinsic.FluidState,
@@ -116,6 +124,9 @@ pub const VoidVolume = struct {
         save_array[0] = self.intrinsic.press;
         save_array[1] = self.intrinsic.temp;
         save_array[2] = self.intrinsic.sp_enthalpy;
+        save_array[3] = self.intrinsic.density;
+        save_array[4] = self.intrinsic.sp_inenergy;
+        save_array[5] = self.intrinsic.sp_entropy;
     }
 
     pub fn set_vals(self: *Self, save_array: []f64) void {
@@ -277,7 +288,7 @@ pub const StaticVolume = struct {
 
         // Continuity Equation (ingoring head and velocity)
         self.net_mdot = self.mdot_in - self.mdot_out;
-        self.net_inenergy_dot = (self.mdot_in * self.hdot_in) - (self.mdot_out * self.hdot_out);
+        self.net_inenergy_dot = self.hdot_in - self.hdot_out; // this is captical H not lower h.... should fix
 
         // State update
         self.intrinsic.update_from_du(self.mass / self.volume, self.inenergy / self.mass);
