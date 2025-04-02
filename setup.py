@@ -6,7 +6,7 @@ NAME = "kinetic_kebab"
 res = setup(
     name=NAME,
     version="0.0.1",
-    packages=find_packages(where = ".", exclude=("tests")),
+    packages=find_packages(where = ".", exclude=("tests","cea_props")),
     url="",
     author="Some Joe",
     author_email="joe.burge.iii@gmail.com",
