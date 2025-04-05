@@ -104,7 +104,7 @@ pub const SimObject = union(enum) {
     pub fn set_vals(self: *const Self, save_array: []f64) !void {
         return switch (self.*) {
             .SimInfo => |impl| {
-                impl.time = save_array[1];
+                impl.time = save_array[2];
             },
             inline else => |impl| impl.set_vals(save_array),
         };
